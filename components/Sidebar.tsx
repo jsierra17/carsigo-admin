@@ -1,80 +1,82 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import { useAuth } from '@/contexts/AuthContext';
 
-// Conexión a Supabase para poder cerrar sesión
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const menuItems = [
+  { name: 'Dashboard', path: '/admin', icon: '📊', roles: ['admin', 'superadmin'] },
+  { name: 'Viajes', path: '/admin/viajes', icon: '🚗', roles: ['admin', 'superadmin'] },
+  { name: 'Conductores', path: '/admin/conductores', icon: '👥', roles: ['admin', 'superadmin'] },
+  { name: 'Zonas', path: '/admin/zonas', icon: '📍', roles: ['superadmin'] },
+  { name: 'Finanzas', path: '/admin/finanzas', icon: '💰', roles: ['superadmin'] },
+  { name: 'Administradores', path: '/admin/administradores', icon: '🛡️', roles: ['superadmin'] },
+];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  // Definimos todas las rutas de tu plataforma
-  const menuItems = [
-    { name: 'Dashboard General', path: '/admin', icon: '📊' },
-    { name: 'Conductores Pendientes', path: '/admin/conductores', icon: '📋' },
-    { name: 'Conductores Activos', path: '/admin/conductores/activos', icon: '🚗' },
-    { name: 'Zonas y Mapas', path: '/admin/zonas', icon: '🗺️' },
-    { name: 'Finanzas', path: '/admin/finanzas', icon: '💰' },
-  ];
-
-  const handleLogout = async () => {
-    // 1. Cerramos sesión en Supabase
-    await supabase.auth.signOut();
-    // 2. Le quitamos la llave al guardia de seguridad (Middleware)
-    document.cookie = "carsigo-auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    // 3. Te devolvemos a la pantalla de Login
-    router.push('/login');
-  };
+  const { role, isLoading } = useAuth();
 
   return (
-    <aside className="w-64 bg-slate-900 text-white hidden md:flex flex-col fixed h-full shadow-2xl z-10">
-      {/* Logotipo de CarSiGo */}
-      <div className="h-20 flex items-center justify-center border-b border-slate-800">
-        <h2 className="text-2xl font-extrabold tracking-wider text-white">
-         <span className="text-red-500">Car</span><span className="text-yellow-500">Si</span><span className="text-green-500">Go</span>
-        </h2>
+    <aside className="w-64 bg-white text-slate-800 hidden md:flex flex-col fixed h-full border-r border-gray-200 shadow-sm z-10 font-sans">
+      <div className="h-24 bg-black flex flex-col items-center justify-center px-6">
+        <div className="relative w-full h-24">
+          <Image
+            src="/assets/logo.png"
+            alt="CarSiGo Logo"
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
       </div>
 
-      {/* Lista de Navegación */}
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-        <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-          Menú Principal
+      <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
+        <p className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">
+          SISTEMA CARSIGO
         </p>
-        
-        {menuItems.map((item) => {
-          // Detectamos si esta es la página actual para pintarla de azul
-          const isActive = pathname === item.path;
-          
-          return (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                isActive 
-                  ? 'bg-green-600 text-white shadow-md shadow-green-900/20' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          );
-        })}
+
+        {/* Mientras carga el contexto, muestra esqueleto del menú */}
+        {isLoading ? (
+          <div className="space-y-2 animate-pulse px-2">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-12 bg-slate-100 rounded-2xl"></div>
+            ))}
+          </div>
+        ) : (
+          menuItems
+            .filter(item => role ? item.roles.includes(role) : false)
+            .map((item) => {
+              const isActive = pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  prefetch={true}
+                  className={`flex items-center gap-3 px-4 py-4 rounded-2xl transition-all duration-300 ${isActive
+                    ? 'bg-[#00E5FF]/10 text-[#00606b] shadow-sm border border-[#00E5FF]/20'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                  <span className="text-xl opacity-80">{item.icon}</span>
+                  <span className="font-black text-[11px] uppercase tracking-wider">{item.name}</span>
+                </Link>
+              );
+            })
+        )}
       </nav>
 
-      {/* Botón de Cerrar Sesión al fondo */}
-      <div className="p-4 border-slate-800">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
-        >
-          <span className="text-xl">🚪</span>
-        </button>
+      <div className="p-6 border-t border-gray-100 bg-slate-50 flex flex-col items-center gap-6">
+        <div className="w-full">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">AUTENTICACIÓN</p>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-2 h-2 rounded-full ${role === 'superadmin' ? 'bg-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'bg-emerald-500'}`}></div>
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+              {isLoading ? '...' : (role || 'admin')}
+            </p>
+          </div>
+        </div>
       </div>
     </aside>
   );

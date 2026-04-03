@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+🚗 CarSiGo - Master Workspace & AI Agent Guide
 
-## Getting Started
+🤖 AVISO PARA EL AGENTE DE IA (WINDSURF / CASCADE /VISUAL STUDIO CODE O SIMILAR)
 
-First, run the development server:
+Si eres una Inteligencia Artificial leyendo este archivo, este es tu manual operativo estricto. La arquitectura ha evolucionado: el panel admin es web (Next.js) y la aplicación móvil es 100% FLUTTER.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+NO asumas ni inventes tecnologías: Apégate al Stack Tecnológico definido aquí. NO uses React Native para la app móvil.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Contexto de Lenguajes: Para la carpeta /app y /admin usa TypeScript/React. Para la carpeta /carsigo-mobile usa exclusívamente DART y el framework FLUTTER.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Revisa siempre el PRD: Para dudas sobre reglas de negocio (tarifas, comisiones, seguridad), lee obligatoriamente el archivo DOCUMENTACION.md.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Sigue el Roadmap: No te adelantes a construir características de Fases futuras a menos que el desarrollador (Jose) te lo indique explícitamente.
 
-## Learn More
+🛠️ Stack Tecnológico
 
-To learn more about Next.js, take a look at the following resources:
+Web Admin: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+App Móvil: Flutter (Lenguaje Dart) para compilación nativa en iOS y Android.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Base de Datos & Auth: Supabase (PostgreSQL). SDKs: @supabase/supabase-js (Web) y supabase_flutter (Móvil).
 
-## Deploy on Vercel
+Geolocalización: PostGIS (Backend), Mapbox GL JS (Web) y mapbox_maps_flutter (Móvil).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+📂 Estructura del Proyecto
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+/carsigo-admin (Raíz)
+ ├── /app                  # Frontend Web (Next.js App Router)
+ │    ├── /admin           # Panel Administrativo (Dashboard, Conductores, Zonas, Finanzas)
+ │    └── /login           # Autenticación Web
+ ├── /components           # Componentes reutilizables de React (UI)
+ ├── /lib                  # Utilidades core web (supabase.ts, types, etc.)
+ ├── /carsigo-mobile       # Sub-proyecto: Aplicación Móvil (FLUTTER / DART)
+ │    ├── /lib             # Código fuente de Flutter (main.dart, screens, widgets)
+ │    └── pubspec.yaml     # Dependencias de Flutter
+ ├── .env.local            # Variables de entorno Web
+ ├── DOCUMENTACION.md      # Reglas de negocio y PRD (¡Lectura obligatoria!)
+ └── README.md             # Este archivo
+
+
+🚀 ROADMAP DE EJECUCIÓN (Paso a Paso)
+
+✅ Fase 1: Arquitectura de Base de Datos
+
+[x] Crear proyecto en Supabase.
+
+[x] Habilitar extensión PostGIS.
+
+[x] Crear tablas core (Users, Driver_Profiles, Geofences, Wallets).
+
+[x] Configurar llaves y apagar RLS temporalmente para desarrollo.
+
+✅ Fase 2: Panel Administrativo Web (COMPLETADA)
+
+[x] UI del Dashboard, Conductores, Zonas y Finanzas.
+
+[x] Middleware y Rutas Protegidas.
+
+[x] CRUD de Zonas (Búsqueda por municipio + guardado de polígonos).
+
+[x] Mejoras del Motor Financiero (Reportes PDF, filtros, toasts).
+
+[x] Dashboard en Tiempo Real y Tabla de Viajes.
+
+🚧 Fase 3: App Móvil Base (FLUTTER) - ESTADO ACTUAL
+
+Objetivo: Levantar el entorno móvil nativo para Pasajeros y Conductores.
+
+[ ] Inicializar proyecto de Flutter en el directorio /carsigo-mobile.
+
+[ ] Configurar el archivo pubspec.yaml con dependencias clave (supabase_flutter, flutter_riverpod o provider para estado, go_router para navegación).
+
+[ ] Configurar variables de entorno en Flutter para las llaves de Supabase.
+
+[ ] Crear estructura de carpetas dentro de carsigo-mobile/lib (screens, widgets, services).
+
+[ ] Integrar Supabase Auth (Pantallas de Login/Registro para Pasajero y Conductor).
+
+🚧 Fase 4: Motor de Viajes en Flutter (Tiempo Real)
+
+Objetivo: Flujo tipo inDrive (Oferta/Contraoferta) en la App.
+
+[ ] Integrar mapbox_maps_flutter para renderizar el mapa interactivo.
+
+[ ] Validar ubicación del usuario (GPS del dispositivo) contra la tabla Geofences (PostGIS).
+
+[ ] Implementar Supabase Realtime en Dart para emitir y escuchar solicitudes de viaje.
+
+[ ] UI de contraofertas y selección de conductores.
+
+[ ] Pantalla de ingreso del PIN de 4 dígitos.
+
+🚧 Fase 5: Motor Financiero (La Billetera Móvil)
+
+Objetivo: Gestión de saldos desde la app del conductor.
+
+[ ] Lógica de bloqueo en la UI: Ocultar viajes si Wallet.balance < 5000.
+
+[ ] Pantalla de recargas e integración de pasarelas (Nequi, Daviplata, PSE).
+
+[ ] Ejecutar penalidad del 24% por cancelación a menos de 800m.
+
+🚧 Fase 6: Seguridad y Escalabilidad Avanzada
+
+Objetivo: Blindar la plataforma.
+
+[ ] Integrar validación de antecedentes (Registraduría).
+
+[ ] Biometría Facial nativa (Cámara en Flutter) al inicio de sesión.
+
+[ ] Botón de Pánico Inteligente.
+
+[ ] Encender reglas RLS en Supabase.

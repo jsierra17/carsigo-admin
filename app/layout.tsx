@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CarSiGo",
   description: "Panel Administrativo para CarSiGo",
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "32x32" },
+      { url: "/icon.png", sizes: "192x192" },
+    ],
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
