@@ -1,13 +1,25 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
-  static const String supabaseUrl = 'https://gyfbazbvrgmwtwkkswdy.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5ZmJhemJ2cmdtd3R3a2tzd2R5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI3NzIsImV4cCI6MjA4OTEwODc3Mn0.81poGBC7v6Ijrh3ezZUbR-0o-LG2nvQIM_Zp9eC7y24';
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   static Future<void> initialize() async {
+    final url = supabaseUrl;
+    final key = supabaseAnonKey;
+
+    if (url.isEmpty || key.isEmpty) {
+      throw Exception(
+        'Faltan las variables de entorno SUPABASE_URL o SUPABASE_ANON_KEY.\n'
+        'Asegúrate de crear un archivo .env en carsigo-mobile/ con las credenciales correctas.\n'
+        'Usa .env.example como referencia.',
+      );
+    }
+
     await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
+      url: url,
+      anonKey: key,
     );
   }
 

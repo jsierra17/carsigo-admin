@@ -1,12 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-/**
- * Estructura del contexto de autenticación compartida.
- * Se resuelve una sola vez al cargar el panel y se cachea en memoria.
- */
 type AuthContextType = {
   user: any | null;
   role: string;
@@ -19,59 +16,80 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
 });
 
-/**
- * Proveedor de AuthContext.
- * Resuelve el usuario y su rol UNA SOLA VEZ al montar el layout de /admin.
- * Todos los componentes hijos (Sidebar, Header, páginas) consumen este contexto
- * sin necesidad de hacer sus propias llamadas a Supabase Auth o la DB.
- */
+const OWNER_EMAIL = process.env.NEXT_PUBLIC_OWNER_EMAIL || 'todoobraparabien1998@gmail.com';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = createClient();
+  const router = useRouter();
   const [state, setState] = useState<AuthContextType>({ user: null, role: '', isLoading: true });
 
   useEffect(() => {
     async function resolverAuth() {
       try {
-        // Una sola llamada a getUser() para toda la sesión del panel
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
           setState({ user: null, role: '', isLoading: false });
+          router.push('/login');
           return;
         }
 
-        // Bypass de seguridad para el propietario del sistema
-        if (user.email === 'todoobraparabien1998@gmail.com') {
+        if (user.email === OWNER_EMAIL) {
           setState({ user, role: 'superadmin', isLoading: false });
           return;
         }
 
-        // Una sola consulta a la DB para el rol
         const { data: profile } = await supabase
           .from('users')
           .select('role')
           .eq('id', user.id)
           .maybeSingle();
 
-        const role = profile?.role || user.user_metadata?.role || 'admin';
+        const role = profile?.role || 'admin';
         setState({ user, role, isLoading: false });
 
       } catch (err) {
         console.error('AuthContext: error resolviendo usuario', err);
-        setState({ user: null, role: 'admin', isLoading: false });
+        setState({ user: null, role: '', isLoading: false });
+        router.push('/login');
       }
     }
 
     resolverAuth();
-  }, []); // Solo se ejecuta una vez al montar
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setState({ user: null, role: '', isLoading: false });
+          router.push('/login');
+          return;
+        }
+
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          const user = session.user;
+
+          if (user.email === OWNER_EMAIL) {
+            setState({ user, role: 'superadmin', isLoading: false });
+            return;
+          }
+
+          const { data: profile } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          setState({ user, role: profile?.role || 'admin', isLoading: false });
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Hook para consumir el AuthContext en cualquier componente hijo.
- * Uso: const { user, role, isLoading } = useAuth();
- */
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);

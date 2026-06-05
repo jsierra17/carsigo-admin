@@ -12,18 +12,28 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  flutter_dotenv: ^5.2.1
   supabase_flutter: ^2.5.0
   flutter_riverpod: ^2.5.1
-  geolocator: ^12.0.0
-  mapbox_maps_flutter: ^2.2.0
   google_fonts: ^6.2.1
-  latlong2: ^0.9.1
-  logger: ^2.3.0
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
+    - .env
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/sub.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#0a0a0b"
+  adaptive_icon_foreground: "assets/sub.png"

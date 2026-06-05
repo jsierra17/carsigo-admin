@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:carsigo_mobile/services/supabase_service.dart';
-import 'package:carsigo_mobile/screens/auth/login_screen.dart';
+import 'package:carsigo_mobile/screens/onboarding/onboarding_screen.dart';
+import 'package:carsigo_mobile/screens/driver/driver_home_screen.dart';
+import 'package:carsigo_mobile/screens/passenger/passenger_home_screen.dart';
+import 'package:carsigo_mobile/providers/auth_provider.dart';
+import 'package:carsigo_mobile/models/user_profile.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicialización de Supabase
+
+  await dotenv.load(fileName: ".env");
+
   await SupabaseService.initialize();
 
   runApp(
@@ -30,43 +36,70 @@ class CarSiGoApp extends StatelessWidget {
         colorSchemeSeed: Colors.blue,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const MainGate(),
+      home: const AuthGate(),
     );
   }
 }
 
-class MainGate extends StatelessWidget {
-  const MainGate({super.key});
+class AuthGate extends ConsumerWidget {
+  const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.directions_car_filled, size: 80, color: Colors.blue),
-            const SizedBox(height: 20),
-            Text(
-              'CarSiGo',
-              style: GoogleFonts.poppins(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Text('Movilidad Hiperlocal'),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              child: const Text('Comenzar'),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+
+    return authState.when(
+      data: (state) {
+        final user = state.session?.user;
+
+        if (user == null) {
+          return const OnboardingScreen();
+        }
+
+        final userProfile = ref.watch(userProfileProvider);
+
+        return userProfile.when(
+          data: (profile) {
+            if (profile == null) {
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Configurando tu cuenta...',
+                        style: GoogleFonts.poppins(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            if (profile.role == UserRole.driver) {
+              return const DriverHomeScreen();
+            }
+            return const PassengerHomeScreen();
+          },
+          loading: () => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
+          error: (err, stack) => Scaffold(
+            body: Center(child: Text('Error al cargar perfil: $err')),
+          ),
+        );
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, stack) => Scaffold(
+        body: Center(child: Text('Error de autenticacion: $err')),
       ),
     );
   }

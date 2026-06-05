@@ -1,58 +1,45 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/service'
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { checkIsSuperAdmin } from '@/lib/auth'
 
 export async function inviteAdmin(formData: FormData) {
-  const adminSupabase = createAdminClient()
-  const userSupabase = await createClient()
+  if (!(await checkIsSuperAdmin())) {
+    return { error: 'Acceso Denegado. Solo el Super Admin puede crear otros administradores.' }
+  }
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const name = formData.get('name') as string
   const phone = formData.get('phone') as string || 'N/A'
 
-  // Verificar si el usuario actual es superadmin
-  const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return { error: 'No estás autenticado' }
+  const adminSupabase = createAdminClient()
 
-  // BYPASS DE SEGURIDAD PARA EL PROPIETARIO
-  if (user.email !== 'todoobraparabien1998@gmail.com') {
-    const { data: userData } = await adminSupabase.from('users').select('role').eq('id', user.id).single()
-    if (userData?.role !== 'superadmin') {
-      return { error: 'Acceso Denegado. Solo el Super Admin puede crear otros administradores.' }
-    }
-  }
-
-  // Si es superadmin, procedemos a crear la cuenta
+  // 1. Crear usuario en Auth
   const { data: newAuthUser, error: createError } = await adminSupabase.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { name, phone, role: 'admin' }
+    user_metadata: { name, role: 'admin' }
   })
 
-  if (createError) {
-    return { error: createError.message }
-  }
+  if (createError) return { error: createError.message }
 
-  // Actualizamos o insertamos el perfil en public.users con el rol de admin
+  // 2. Insertar en tabla public.users
   if (newAuthUser.user) {
-    const { error: upsertError } = await adminSupabase
+    const { error: insertError } = await adminSupabase
       .from('users')
-      .upsert({
+      .insert([{
         id: newAuthUser.user.id,
         role: 'admin',
         name: name,
         email: email,
         status: 'active',
         phone: phone
-      })
+      }])
 
-    if (upsertError) {
-      console.error('Error actualizando perfil usuario', upsertError)
-    }
+    if (insertError) console.error('Error insertando perfil:', insertError)
   }
 
   revalidatePath('/admin/administradores')
@@ -60,26 +47,22 @@ export async function inviteAdmin(formData: FormData) {
 }
 
 export async function getAdmins() {
-  try {
-    const adminSupabase = createAdminClient()
-    const { data, error } = await adminSupabase
-      .from('users')
-      .select('id, name, email, role, status, phone')
-      .in('role', ['admin', 'superadmin'])
-      .order('name')
+  const adminSupabase = createAdminClient()
+  const { data, error } = await adminSupabase
+    .from('users')
+    .select('id, name, email, role, status, phone')
+    .in('role', ['admin', 'superadmin'])
+    .order('name')
 
-    if (error) {
-      console.error('Error fetching admins:', error)
-      return []
-    }
-    return data || []
-  } catch (err) {
-    console.error('Fatal error in getAdmins:', err)
-    return []
-  }
+  if (error) return []
+  return data || []
 }
 
 export async function toggleAdminStatus(userId: string, currentStatus: string) {
+  if (!(await checkIsSuperAdmin())) {
+    return { error: 'Acceso Denegado' }
+  }
+
   const adminSupabase = createAdminClient()
   const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
 
@@ -88,50 +71,39 @@ export async function toggleAdminStatus(userId: string, currentStatus: string) {
     .update({ status: newStatus })
     .eq('id', userId)
 
-  if (error) {
-    return { error: error.message }
-  }
+  if (error) return { error: error.message }
 
   revalidatePath('/admin/administradores')
   return { success: true }
 }
 
 export async function updateAdmin(userId: string, formData: FormData) {
-  const adminSupabase = createAdminClient()
-  const userSupabase = await createClient()
-
-  const email = formData.get('email') as string
-  const name = formData.get('name') as string
-  const phone = formData.get('phone') as string
-
-  // Verificar si el usuario actual es superadmin
-  const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return { error: 'No estás autenticado' }
-
-  // BYPASS DE SEGURIDAD PARA EL PROPIETARIO
-  if (user.email !== 'todoobraparabien1998@gmail.com') {
-    const { data: userData } = await adminSupabase.from('users').select('role').eq('id', user.id).single()
-    if (userData?.role !== 'superadmin') {
-      return { error: 'Acceso Denegado.' }
-    }
+  if (!(await checkIsSuperAdmin())) {
+    return { error: 'Acceso Denegado. Solo el Super Admin puede modificar administradores.' }
   }
 
-  // 1. Actualizar Auth (email y metadata)
-  const { error: authError } = await adminSupabase.auth.admin.updateUserById(userId, {
-    email: email,
-    user_metadata: { name, phone, role: 'admin' }
-  })
+  const name = formData.get('name') as string
+  const email = formData.get('email') as string
+  const phone = formData.get('phone') as string || 'N/A'
 
+  const adminSupabase = createAdminClient()
+
+  // 1. Actualizar metadata en Auth
+  const { error: authError } = await adminSupabase.auth.admin.updateUserById(
+    userId,
+    { email, user_metadata: { name, role: 'admin' } }
+  )
   if (authError) return { error: authError.message }
 
-  // 2. Actualizar Tabla users (perfil)
-  const { error: dbError } = await adminSupabase
+  // 2. Actualizar en tabla public.users
+  const { error: updateError } = await adminSupabase
     .from('users')
     .update({ name, email, phone })
     .eq('id', userId)
 
-  if (dbError) return { error: dbError.message }
+  if (updateError) return { error: updateError.message }
 
   revalidatePath('/admin/administradores')
   return { success: true }
 }
+
