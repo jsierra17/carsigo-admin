@@ -28,6 +28,7 @@ export async function createDynamicPricingRule(payload: {
   multiplier: number
   flat_surcharge?: number
   geofence_id?: string | null
+  vehicle_type?: string | null
   priority?: number
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }

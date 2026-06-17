@@ -135,10 +135,29 @@ CREATE TABLE IF NOT EXISTS public.rate_cards (
   base_fee NUMERIC NOT NULL DEFAULT 2500,
   price_per_km NUMERIC NOT NULL DEFAULT 1000,
   price_per_minute NUMERIC NOT NULL DEFAULT 150,
-  minimum_fare NUMERIC NOT NULL DEFAULT 3500,
+  minimum_fare NUMERIC NOT NULL DEFAULT 5000,
   free_waiting_minutes INT DEFAULT 5,
   waiting_price_per_minute NUMERIC DEFAULT 200,
   commission_percent NUMERIC DEFAULT 10,
+  included_km INT DEFAULT 2,
+  extra_km_percent NUMERIC DEFAULT 50,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ============================================================
+-- TABLA: rate_schedules (horarios de tarifa progresiva)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.rate_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  vehicle_type TEXT NOT NULL CHECK (vehicle_type IN ('car', 'moto')),
+  day_type TEXT NOT NULL CHECK (day_type IN ('weekday', 'weekend', 'special')),
+  shift_label TEXT NOT NULL CHECK (shift_label IN ('morning', 'evening')),
+  shift_start TIME NOT NULL,
+  shift_end TIME NOT NULL,
+  base_fee NUMERIC NOT NULL,
+  hourly_increase_percent NUMERIC NOT NULL DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -161,6 +180,7 @@ CREATE TABLE IF NOT EXISTS public.dynamic_pricing_rules (
   multiplier NUMERIC NOT NULL DEFAULT 1.0,
   flat_surcharge NUMERIC DEFAULT 0,
   geofence_id UUID REFERENCES public.geofences(id) ON DELETE SET NULL,
+  vehicle_type TEXT CHECK (vehicle_type IN ('car', 'moto')),
   is_active BOOLEAN DEFAULT true,
   priority INT DEFAULT 100,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -190,6 +210,9 @@ CREATE TABLE IF NOT EXISTS public.trip_fare_breakdown (
 
 CREATE INDEX IF NOT EXISTS idx_rate_cards_active ON public.rate_cards(is_active);
 CREATE INDEX IF NOT EXISTS idx_rate_cards_vehicle ON public.rate_cards(vehicle_type);
+CREATE INDEX IF NOT EXISTS idx_rate_schedules_active ON public.rate_schedules(is_active);
+CREATE INDEX IF NOT EXISTS idx_rate_schedules_vehicle ON public.rate_schedules(vehicle_type);
+CREATE INDEX IF NOT EXISTS idx_rate_schedules_day_type ON public.rate_schedules(day_type);
 CREATE INDEX IF NOT EXISTS idx_dynamic_pricing_rules_active ON public.dynamic_pricing_rules(is_active);
 CREATE INDEX IF NOT EXISTS idx_dynamic_pricing_rules_type ON public.dynamic_pricing_rules(rule_type);
 CREATE INDEX IF NOT EXISTS idx_dynamic_pricing_rules_dates ON public.dynamic_pricing_rules(specific_date);

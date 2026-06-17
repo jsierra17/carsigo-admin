@@ -20,6 +20,7 @@ type Rule = {
   multiplier: number
   flat_surcharge: number
   geofence_id: string | null
+  vehicle_type: string | null
   is_active: boolean
   priority: number
   created_at: string
@@ -52,6 +53,7 @@ const defaultForm = {
   multiplier: 1.3,
   flat_surcharge: 0,
   geofence_id: '',
+  vehicle_type: '',
   priority: 100,
 }
 
@@ -93,6 +95,7 @@ export default function PrecioDinamicoPage() {
       flat_surcharge: form.flat_surcharge,
       priority: form.priority,
       geofence_id: form.geofence_id || null,
+      vehicle_type: form.vehicle_type || null,
       is_recurring: form.is_recurring,
     }
     if (form.rule_type === 'time_range') {
@@ -148,6 +151,7 @@ export default function PrecioDinamicoPage() {
       multiplier: rule.multiplier,
       flat_surcharge: rule.flat_surcharge,
       geofence_id: rule.geofence_id || '',
+      vehicle_type: rule.vehicle_type || '',
       priority: rule.priority,
     })
     setEditingId(rule.id)
@@ -257,6 +261,15 @@ export default function PrecioDinamicoPage() {
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Prioridad</label>
                 <input type="number" min={0} max={999} value={form.priority} onChange={e => setForm({ ...form, priority: Number(e.target.value) })}
                   className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Vehículo (opcional)</label>
+                <select value={form.vehicle_type} onChange={e => setForm({ ...form, vehicle_type: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10">
+                  <option value="">Ambos</option>
+                  <option value="moto">Solo Moto</option>
+                  <option value="car">Solo Carro</option>
+                </select>
               </div>
             </div>
 

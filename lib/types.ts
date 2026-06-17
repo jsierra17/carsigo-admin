@@ -23,6 +23,8 @@ export interface Zone {
 }
 
 export type VehicleType = 'car' | 'moto';
+export type DayType = 'weekday' | 'weekend' | 'special';
+export type ShiftLabel = 'morning' | 'evening';
 
 export interface RateCard {
   id: string;
@@ -35,6 +37,22 @@ export interface RateCard {
   free_waiting_minutes: number;
   waiting_price_per_minute: number;
   commission_percent: number;
+  included_km: number;
+  extra_km_percent: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface RateSchedule {
+  id: string;
+  name: string;
+  vehicle_type: VehicleType;
+  day_type: DayType;
+  shift_label: ShiftLabel;
+  shift_start: string;
+  shift_end: string;
+  base_fee: number;
+  hourly_increase_percent: number;
   is_active: boolean;
   created_at: string;
 }
@@ -56,6 +74,7 @@ export interface DynamicPricingRule {
   multiplier: number;
   flat_surcharge: number;
   geofence_id: string | null;
+  vehicle_type: VehicleType | null;
   is_active: boolean;
   priority: number;
   created_at: string;
