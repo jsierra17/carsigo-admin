@@ -35,24 +35,4 @@ export async function resetPassword(email: string) {
   return { success: true }
 }
 
-export async function signInWithGoogle(formData?: FormData) {
-  const supabase = await createClient()
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${origin}/auth/callback`,
-    },
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  if (data.url) {
-    redirect(data.url)
-  }
-
-  return { error: 'No se pudo iniciar sesion con Google.' }
-}
