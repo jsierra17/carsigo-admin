@@ -6,9 +6,12 @@ import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 
 const menuItems = [
-  { name: 'Dashboard', path: '/admin', icon: '📊', roles: ['admin', 'superadmin'] },
+  { name: 'Dashboard', path: '/admin', icon: '📊', roles: ['superadmin'] },
   { name: 'Viajes', path: '/admin/viajes', icon: '🚗', roles: ['admin', 'superadmin'] },
   { name: 'Conductores', path: '/admin/conductores', icon: '👥', roles: ['admin', 'superadmin'] },
+  { name: 'Solicitudes', path: '/admin/solicitudes', icon: '📋', roles: ['admin', 'superadmin'] },
+  { name: 'Tarifas', path: '/admin/tarifas', icon: '💲', roles: ['superadmin'] },
+  { name: 'Precio Dinámico', path: '/admin/precio-dinamico', icon: '⚡', roles: ['superadmin'] },
   { name: 'Zonas', path: '/admin/zonas', icon: '📍', roles: ['superadmin'] },
   { name: 'Finanzas', path: '/admin/finanzas', icon: '💰', roles: ['superadmin'] },
   { name: 'Administradores', path: '/admin/administradores', icon: '🛡️', roles: ['superadmin'] },

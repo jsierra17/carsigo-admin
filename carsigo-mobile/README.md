@@ -10,7 +10,7 @@ Backend: Nuestro backend y base de datos ya están creados en Supabase (PostgreS
 
 Mapas: Usa mapbox_maps_flutter para la renderización de mapas.
 
-Reglas de Negocio: CarSiGo es una app de transporte hiperlocal (estilo inDrive). Comisión del 12%, saldo mínimo de billetera requerido para conductores, negociación de tarifas.
+Reglas de Negocio: CarSiGo es una app de transporte hiperlocal (estilo inDrive). Comisión del 10%, saldo mínimo de billetera requerido para conductores, negociación de tarifas.
 
 🛠️ Stack Tecnológico Móvil
 

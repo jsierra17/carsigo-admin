@@ -84,7 +84,7 @@ export function generateSettlementPDF(settlements: Settlement[]) {
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 120, 140);
-  doc.text('COMISIÓN TOTAL (12%)', 105, 65, { align: 'center' });
+  doc.text('COMISIÓN TOTAL (10%)', 105, 65, { align: 'center' });
 
   // Bloque 3: Volumen base
   doc.setFont('helvetica', 'bold');

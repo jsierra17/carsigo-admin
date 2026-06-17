@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter clean *)",
+      "Bash(flutter build *)",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $ico = [System.Drawing.Icon]::ExtractAssociatedIcon\\(\"C:\\\\projects\\\\carsigo-admin\\\\Public\\\\assets\\\\icon.ico\"\\); if \\($ico\\) { $bitmap = $ico.ToBitmap\\(\\); $bitmap.Save\\(\"C:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\assets\\\\app_icon.png\", [System.Drawing.Imaging.ImageFormat]::Png\\); Write-Output \"Saved app_icon.png \\($\\($bitmap.Width\\)x$\\($bitmap.Height\\)\\)\"; $bitmap.Dispose\\(\\); $ico.Dispose\\(\\) } else { Write-Output \"Failed to load icon\" })",
+      "PowerShell(Get-ChildItem -Recurse -File \"c:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\.env\" 2>$null; if \\(-not \\(Test-Path \"c:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\.env\"\\)\\) { Write-Output \"FILE_NOT_FOUND\" })",
+      "PowerShell(Get-ChildItem -Recurse -File \"c:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\ios\" | Where-Object { $_.Extension -in '.storyboard', '.xib' } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem -File \"c:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\assets\" 2>$null; if \\(-not \\(Test-Path \"c:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile\\\\assets\"\\)\\) { Write-Output \"ASSETS_DIR_NOT_FOUND\" })",
+      "Bash(./gradlew signingReport)",
+      "PowerShell(keytool -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -storepass android -alias android_key 2>$null)",
+      "PowerShell(keytool -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -storepass android 2>&1 | Select-Object -First 30)",
+      "Bash(Select-Object -First 40)",
+      "Read(//c/flutter/bin/cache/**)",
+      "Read(//c/flutter/bin/**)",
+      "PowerShell(cmd /c \"cd C:\\\\projects\\\\carsigo-admin\\\\carsigo-mobile && flutter build apk --debug --target-platform android-arm64 2>&1\")",
+      "PowerShell(Get-ChildItem \"C:\\\\flutter\\\\bin\\\\cache\\\\dart-sdk\\\\bin\\\\dart.exe\" -ErrorAction SilentlyContinue; if \\($? -eq $false -or -not \\(Test-Path \"C:\\\\flutter\\\\bin\\\\cache\\\\dart-sdk\\\\bin\\\\dart.exe\"\\)\\) { Write-Output \"DART SDK MISSING FROM CACHE\" }; Get-ChildItem \"C:\\\\flutter\\\\internal\" -ErrorAction SilentlyContinue)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\internal\\\\update_dart_sdk.ps1\" 2>&1)"
+    ]
+  }
+}

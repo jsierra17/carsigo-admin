@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { Users, Car, AlertCircle, Wallet, Radio, Loader2, Phone, Mail, Clock, ArrowUpRight } from 'lucide-react';
-import { getDashboardMetrics, getLatestDrivers } from '../../lib/supabase';
+import { getDashboardMetrics, getLatestDrivers } from './actions';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -150,7 +150,7 @@ export default function DashboardPage() {
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all opacity-80 animate-in zoom-in duration-300">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500">Ingresos (Comisión 12%)</p>
+                <p className="text-sm font-medium text-gray-500">Ingresos (Comisión 10%)</p>
                 <h3 className="text-3xl font-bold text-gray-900 mt-1">$0</h3>
               </div>
               <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">

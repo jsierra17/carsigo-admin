@@ -119,7 +119,7 @@ export default function FinanzasPage() {
     const monto = tripStats.comisionCarSiGo;
     const confirmMsg = tripStats.tieneDataReal
       ? `¿Confirmas la liquidación?\n\n💰 Comisión real: $${monto.toLocaleString('es-CO')}\n👥 Conductores activos: ${tripStats.conductoresActivos}`
-      : `¿Confirmas la liquidación estimada?\n\n💰 Estimado (12%): $${monto.toLocaleString('es-CO')}\n👥 Conductores: ${tripStats.conductoresActivos}\n\n⚠️ Aún no hay viajes completados en el sistema.`;
+      : `¿Confirmas la liquidación estimada?\n\n💰 Estimado (10%): $${monto.toLocaleString('es-CO')}\n👥 Conductores: ${tripStats.conductoresActivos}\n\n⚠️ Aún no hay viajes completados en el sistema.`;
 
     if (!confirm(confirmMsg)) return;
 
@@ -222,14 +222,14 @@ export default function FinanzasPage() {
             <div className="p-3 bg-[#00E5FF]/10 text-[#00606b] rounded-2xl border border-[#00E5FF]/20">
               <PieChart size={24} />
             </div>
-            <span className="px-2 py-0.5 bg-[#00E5FF] text-[#131313] text-[9px] font-black rounded uppercase tracking-tighter self-center">12% Plana</span>
+            <span className="px-2 py-0.5 bg-[#00E5FF] text-[#131313] text-[9px] font-black rounded uppercase tracking-tighter self-center">10% Plana</span>
           </div>
           <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-1">Comisión CarSiGo</p>
           <h3 className="text-4xl font-black text-[#00606b] tracking-tighter">
             ${tripStats.comisionCarSiGo.toLocaleString('es-CO')}
           </h3>
           <p className="text-[10px] text-slate-400 font-medium mt-4">
-            {tripStats.tieneDataReal ? '12% del volumen real de viajes' : '12% estimado sin datos reales'}
+            {tripStats.tieneDataReal ? '10% del volumen real de viajes' : '10% estimado sin datos reales'}
           </p>
         </div>
 
