@@ -26,8 +26,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   AuthController(this._authService, this._ref) : super(const AsyncData(null));
 
-  /// Syncs the current Supabase user to the public.users table.
-  Future<void> _syncProfile({String? name}) async {
+  Future<void> _syncProfile() async {
     final user = _authService.currentUser;
     if (user == null) return;
 
@@ -35,7 +34,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
     if (existing != null) {
       final updated = existing.copyWith(
-        name: name ?? user.userMetadata?['full_name'] ?? existing.name,
+        fullName: user.userMetadata?['full_name'] ?? existing.fullName,
         avatarUrl: user.userMetadata?['avatar_url'] ?? existing.avatarUrl,
       );
       await _authService.createProfile(updated);
@@ -43,7 +42,10 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       final newProfile = UserProfile(
         id: user.id,
         phone: user.phone ?? '',
-        name: name ?? user.userMetadata?['full_name'] ?? user.email?.split('@').first ?? '',
+        fullName:
+            user.userMetadata?['full_name'] ??
+            user.email?.split('@').first ??
+            '',
         role: UserRole.passenger,
         avatarUrl: user.userMetadata?['avatar_url'],
         createdAt: DateTime.now(),
@@ -61,46 +63,17 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     _ref.invalidate(userProfileProvider);
   }
 
-  Future<void> signUpWithEmail({
-    required String email,
-    required String password,
-    required String fullName,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await _authService.signUpWithEmail(
-        email: email,
-        password: password,
-        fullName: fullName,
-      );
-      await _syncProfile(name: fullName);
-    });
-    _ref.invalidate(userProfileProvider);
-  }
-
-  Future<void> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await _authService.signInWithPassword(
-        email: email,
-        password: password,
-      );
-    });
-    _ref.invalidate(userProfileProvider);
-  }
-
   Future<void> signOut() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await _authService.signOut();
     });
   }
+
+  AsyncValue<void> get error => state;
 }
 
 final authControllerProvider =
     StateNotifierProvider<AuthController, AsyncValue<void>>((ref) {
-  return AuthController(ref.watch(authServiceProvider), ref);
-});
+      return AuthController(ref.watch(authServiceProvider), ref);
+    });

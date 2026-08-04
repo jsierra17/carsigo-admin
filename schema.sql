@@ -37,15 +37,21 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
 CREATE TABLE IF NOT EXISTS public.trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   passenger_id UUID NOT NULL REFERENCES public.users(id),
-  driver_id UUID NOT NULL REFERENCES public.users(id),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'cancelled')),
+  driver_id UUID REFERENCES public.users(id),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'active', 'completed', 'cancelled')),
   fare_amount NUMERIC DEFAULT 0,
   commission_amount NUMERIC DEFAULT 0,
   pickup_address TEXT,
   dropoff_address TEXT,
   pickup_location GEOMETRY(Point, 4326),
   dropoff_location GEOMETRY(Point, 4326),
+  driver_lat NUMERIC,
+  driver_lng NUMERIC,
+  distance_km NUMERIC DEFAULT 0,
+  duration_min NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
+  accepted_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ
 );
 
@@ -78,12 +84,18 @@ CREATE TABLE IF NOT EXISTS public.driver_applications (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.settlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id UUID NOT NULL REFERENCES public.users(id),
   reference TEXT NOT NULL UNIQUE,
-  total_amount NUMERIC NOT NULL,
-  volume_base NUMERIC,
-  drivers_involved INTEGER,
-  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed')),
-  created_at TIMESTAMPTZ DEFAULT now()
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  trip_count INTEGER NOT NULL DEFAULT 0,
+  total_fare NUMERIC NOT NULL DEFAULT 0,
+  commission_amount NUMERIC NOT NULL DEFAULT 0,
+  driver_payout NUMERIC NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','completed','cancelled')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- ============================================================
@@ -121,6 +133,7 @@ CREATE INDEX IF NOT EXISTS idx_trips_passenger ON public.trips(passenger_id);
 CREATE INDEX IF NOT EXISTS idx_trips_driver ON public.trips(driver_id);
 CREATE INDEX IF NOT EXISTS idx_driver_applications_status ON public.driver_applications(status);
 CREATE INDEX IF NOT EXISTS idx_settlements_created_at ON public.settlements(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_settlements_driver ON public.settlements(driver_id);
 CREATE INDEX IF NOT EXISTS idx_geofences_active ON public.geofences(is_active);
 CREATE INDEX IF NOT EXISTS idx_geofences_boundaries ON public.geofences USING GIST (boundaries);
 CREATE INDEX IF NOT EXISTS idx_wallets_user ON public.wallets(user_id);
@@ -219,13 +232,133 @@ CREATE INDEX IF NOT EXISTS idx_dynamic_pricing_rules_dates ON public.dynamic_pri
 CREATE INDEX IF NOT EXISTS idx_trip_fare_breakdown_trip ON public.trip_fare_breakdown(trip_id);
 
 -- ============================================================
--- POLÍTICAS RLS (Row Level Security)
--- HABILITAR EN PRODUCCIÓN después de configurar las policies
+-- RLS — habilitado en base de datos real
 -- ============================================================
--- ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.driver_applications ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.geofences ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.geofences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- POLICIES — settlements
+-- ============================================================
+CREATE POLICY settlements_select_driver ON public.settlements FOR SELECT
+  USING (driver_id = auth.uid() OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY settlements_update_admin ON public.settlements FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — users (admin puede ver/tocar cualquier perfil)
+-- ============================================================
+CREATE POLICY users_select_own ON public.users FOR SELECT
+  USING (id = auth.uid() OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY users_update_own ON public.users FOR UPDATE
+  USING (id = auth.uid() OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY users_insert_auth ON public.users FOR INSERT
+  WITH CHECK (id = auth.uid());
+
+-- ============================================================
+-- POLICIES — driver_profiles (solo SELECT; writes via RPC)
+-- ============================================================
+CREATE POLICY driver_profiles_select_all ON public.driver_profiles FOR SELECT
+  USING (true);
+-- INSERT/UPDATE no se pueden crear via Management API (auth.uid() bug en esta tabla).
+-- Usar RPC: public.set_driver_availability(), public.create_driver_profile()
+
+-- ============================================================
+-- POLICIES — trips (pasajero crea, conductor acepta, admin todo)
+-- ============================================================
+CREATE POLICY trips_insert_passenger ON public.trips FOR INSERT
+  WITH CHECK (passenger_id = auth.uid());
+CREATE POLICY trips_select_own ON public.trips FOR SELECT
+  USING (passenger_id = auth.uid()
+    OR driver_id = auth.uid()
+    OR (status = 'pending' AND (SELECT role FROM public.users WHERE id = auth.uid()) = 'driver')
+    OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY trips_update_involved ON public.trips FOR UPDATE
+  USING (passenger_id = auth.uid()
+    OR driver_id = auth.uid()
+    OR (status = 'pending' AND (SELECT role FROM public.users WHERE id = auth.uid()) = 'driver')
+    OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — driver_applications
+-- ============================================================
+CREATE POLICY driver_applications_insert_own ON public.driver_applications FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+CREATE POLICY driver_applications_select_own ON public.driver_applications FOR SELECT
+  USING (user_id = auth.uid() OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY driver_applications_update_admin ON public.driver_applications FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — geofences (SELECT público, CRUD admin)
+-- ============================================================
+CREATE POLICY geofences_select ON public.geofences FOR SELECT
+  USING (true);
+CREATE POLICY geofences_write_admin ON public.geofences FOR INSERT
+  WITH CHECK ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY geofences_update_admin ON public.geofences FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — wallets
+-- ============================================================
+CREATE POLICY wallets_select_own ON public.wallets FOR SELECT
+  USING (user_id = auth.uid() OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY wallets_update_admin ON public.wallets FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — rate_cards / rate_schedules / dynamic_pricing
+-- ============================================================
+CREATE POLICY rate_cards_select ON public.rate_cards FOR SELECT USING (true);
+CREATE POLICY rate_cards_write_admin ON public.rate_cards FOR INSERT
+  WITH CHECK ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY rate_cards_update_admin ON public.rate_cards FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+CREATE POLICY rate_schedules_select ON public.rate_schedules FOR SELECT USING (true);
+CREATE POLICY rate_schedules_write_admin ON public.rate_schedules FOR INSERT
+  WITH CHECK ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY rate_schedules_update_admin ON public.rate_schedules FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+CREATE POLICY dynamic_pricing_rules_select ON public.dynamic_pricing_rules FOR SELECT USING (true);
+CREATE POLICY dynamic_pricing_rules_write_admin ON public.dynamic_pricing_rules FOR INSERT
+  WITH CHECK ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+CREATE POLICY dynamic_pricing_rules_update_admin ON public.dynamic_pricing_rules FOR UPDATE
+  USING ((SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- POLICIES — trip_fare_breakdown (solo pasajero/conductor/admin)
+-- ============================================================
+CREATE POLICY trip_fare_breakdown_select ON public.trip_fare_breakdown FOR SELECT
+  USING ((EXISTS (SELECT 1 FROM trips t WHERE t.id = trip_id
+    AND (t.passenger_id = auth.uid() OR t.driver_id = auth.uid())))
+    OR (SELECT role FROM public.users WHERE id = auth.uid()) IN ('admin','superadmin'));
+
+-- ============================================================
+-- RPC FUNCTIONS (bypass driver_profiles RLS)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.set_driver_availability(p_available BOOLEAN)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE public.driver_profiles
+  SET status = CASE WHEN p_available THEN 'active' ELSE 'suspended' END
+  WHERE user_id = auth.uid();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_driver_profile(p_vehicle_type TEXT, p_plate TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.driver_profiles (user_id, vehicle_type, plate, status)
+  VALUES (auth.uid(), p_vehicle_type, p_plate, 'pending')
+  ON CONFLICT (user_id) DO UPDATE
+  SET vehicle_type = p_vehicle_type, plate = p_plate;
+END;
+$$;

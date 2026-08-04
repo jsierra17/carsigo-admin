@@ -24,4 +24,8 @@ class SupabaseService {
   }
 
   static SupabaseClient get client => Supabase.instance.client;
+
+  static Future<void> signOut() async {
+    await Supabase.instance.client.auth.signOut();
+  }
 }

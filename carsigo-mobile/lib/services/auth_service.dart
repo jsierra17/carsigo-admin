@@ -9,64 +9,6 @@ class AuthService {
   User? get currentUser => _supabase.auth.currentUser;
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  // ── Email / Password ──────────────────────────────────────
-
-  Future<AuthResponse> signUpWithEmail({
-    required String email,
-    required String password,
-    required String fullName,
-  }) async {
-    return await _supabase.auth.signUp(
-      email: email,
-      password: password,
-      data: {'full_name': fullName},
-    );
-  }
-
-  Future<AuthResponse> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    return await _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
-  }
-
-  // ── Phone OTP ─────────────────────────────────────────────
-
-  Future<void> signInWithOtp(String phone) async {
-    await _supabase.auth.signInWithOtp(
-      phone: phone,
-      shouldCreateUser: true,
-    );
-  }
-
-  Future<AuthResponse> verifyOtp(String phone, String token) async {
-    return await _supabase.auth.verifyOTP(
-      phone: phone,
-      token: token,
-      type: OtpType.sms,
-    );
-  }
-
-  // ── Email OTP ─────────────────────────────────────────────
-
-  Future<void> signInWithEmail(String email) async {
-    await _supabase.auth.signInWithOtp(
-      email: email,
-      shouldCreateUser: true,
-    );
-  }
-
-  Future<AuthResponse> verifyEmailOtp(String email, String token) async {
-    return await _supabase.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: OtpType.email,
-    );
-  }
-
   // ── Google Sign-In ────────────────────────────────────────
 
   Future<AuthResponse> signInWithGoogle() async {
@@ -79,7 +21,9 @@ class AuthService {
       );
     }
 
-    // Permitir que el usuario elija una cuenta cada vez
+    // Cerrar sesion previa de Google para forzar seleccion de cuenta
+    await _signOutGoogle();
+
     final googleSignIn = GoogleSignIn(
       serverClientId: webClientId,
     );
@@ -88,7 +32,6 @@ class AuthService {
     try {
       googleUser = await googleSignIn.signIn();
     } catch (e) {
-      // Si el usuario cancela o hay un error de plataforma
       if (e.toString().contains('canceled') || e.toString().contains('SIGN_IN_CANCELLED')) {
         throw Exception('Inicio de sesion cancelado por el usuario.');
       }
@@ -118,15 +61,18 @@ class AuthService {
     if (idToken == null) {
       throw Exception(
         'No se pudo obtener el token de Google.\n'
-        'Verifica que la huella SHA-1 del proyecto este registrada en Google Cloud Console.\n\n'
-        'SHA-1 debug: 2B:D8:D3:C5:15:61:AD:DA:A3:6F:3A:0F:1D:2D:A6:A3:25:F2:04:63\n\n'
-        'Registra esta huella en:\n'
-        'Google Cloud Console > APIs & Services > Credentials >\n'
-        'OAuth 2.0 Client ID (Android)',
+        'Esto ocurre cuando la huella SHA-1 no esta registrada en Google Cloud Console.\n\n'
+        'Para obtener tu SHA-1, ejecuta este comando en la terminal:\n'
+        '  cd android && .\\gradlew signingReport\n\n'
+        'Luego registra la huella SHA-1 de la tarea "debug" en:\n'
+        'Google Cloud Console > APIs & Services > Credentials\n'
+        '> Crear Credenciales > ID de cliente de OAuth 2.0 > Tipo: Aplicacion Android\n'
+        '  - Nombre del paquete: com.carsigo.app\n'
+        '  - Huella SHA-1: <la que obtuviste del comando>\n\n'
+        'Si ya esta registrada, asegurate de que sea la misma SHA-1 de tu maquina actual.',
       );
     }
 
-    // Intercambiar el ID token de Google por una sesion de Supabase
     try {
       return await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
@@ -146,7 +92,18 @@ class AuthService {
   // ── Session ───────────────────────────────────────────────
 
   Future<void> signOut() async {
+    await _signOutGoogle();
     await _supabase.auth.signOut();
+  }
+
+  Future<void> _signOutGoogle() async {
+    try {
+      final g = GoogleSignIn();
+      if (await g.isSignedIn()) {
+        await g.signOut();
+        await g.disconnect();
+      }
+    } catch (_) {}
   }
 
   // ── Profile ───────────────────────────────────────────────

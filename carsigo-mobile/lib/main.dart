@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:carsigo_mobile/services/supabase_service.dart';
+import 'package:carsigo_mobile/services/preferences_service.dart';
 import 'package:carsigo_mobile/screens/onboarding/onboarding_screen.dart';
+import 'package:carsigo_mobile/screens/auth/login_screen.dart';
 import 'package:carsigo_mobile/screens/driver/driver_home_screen.dart';
 import 'package:carsigo_mobile/screens/passenger/passenger_home_screen.dart';
 import 'package:carsigo_mobile/providers/auth_provider.dart';
 import 'package:carsigo_mobile/models/user_profile.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +35,7 @@ class CarSiGoApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        fontFamily: 'Poppins',
       ),
       home: const AuthGate(),
     );
@@ -53,7 +54,15 @@ class AuthGate extends ConsumerWidget {
         final user = state.session?.user;
 
         if (user == null) {
-          return const OnboardingScreen();
+          return FutureBuilder<bool>(
+            future: PreferencesService.isOnboardingCompleted(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              return snapshot.data! ? const LoginScreen() : const OnboardingScreen();
+            },
+          );
         }
 
         final userProfile = ref.watch(userProfileProvider);
@@ -74,7 +83,7 @@ class AuthGate extends ConsumerWidget {
                       const SizedBox(height: 20),
                       Text(
                         'Configurando tu cuenta...',
-                        style: GoogleFonts.poppins(fontSize: 16),
+                        style: const TextStyle(fontFamily: 'Poppins', fontSize: 16),
                       ),
                     ],
                   ),

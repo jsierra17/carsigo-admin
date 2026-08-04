@@ -1,97 +1,85 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+const _bg = Color(0xFF0a0a0b);
+const _textPrimary = Color(0xFFFFFFFF);
+const _textSecondary = Color(0xFF94949E);
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
-
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  bool _loading = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    if (mounted) {
+      final state = ref.read(authControllerProvider);
+      final err = state.error;
+      if (err != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
+        );
+        setState(() => _loading = false);
+      } else {
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 60),
+              const Spacer(flex: 2),
+              Image.asset('assets/sub.png', width: 180, height: 180, fit: BoxFit.contain),
+              const Spacer(flex: 1),
               Text(
-                'Bienvenido a\nCarSiGo',
-                style: GoogleFonts.poppins(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[800],
+                'Regístrate para continuar',
+                style: const TextStyle(
+                  fontFamily: 'Poppins', fontSize: 18, fontWeight: FontWeight.w700, color: _textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Ingresa tu número de teléfono para continuar.',
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+              Text(
+                'Usa tu cuenta de Google para acceder\nde forma rápida y segura.',
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: _textSecondary, height: 1.4),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: 'Número de teléfono',
-                  prefixIcon: const Icon(Icons.phone_android),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Implementar lógica de OTP con Supabase
-                  },
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _loading ? null : _signInWithGoogle,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[800],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    backgroundColor: _textPrimary,
+                    foregroundColor: _bg,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text('Enviar Código OTP', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 30),
-              const Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('o continúa con'),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: Implementar Google Sign-In con Supabase
-                  },
-                  icon: const Icon(Icons.g_mobiledata, size: 30),
-                  label: const Text('Google', style: TextStyle(fontSize: 16)),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _bg),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 28),
+                  label: Text(
+                    _loading ? 'Iniciando sesión…' : 'Continuar con Google',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
+              const Spacer(flex: 2),
             ],
           ),
         ),

@@ -17,11 +17,13 @@ class UserProfile {
     required this.createdAt,
   });
 
+  String get displayName => fullName ?? phone;
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'],
       phone: json['phone'] ?? '',
-      fullName: json['full_name'],
+      fullName: json['full_name'] ?? json['name'],
       role: _parseRole(json['role']),
       avatarUrl: json['avatar_url'],
       createdAt: DateTime.parse(json['created_at']),
@@ -32,6 +34,7 @@ class UserProfile {
     return {
       'id': id,
       'phone': phone,
+      'name': fullName,
       'full_name': fullName,
       'role': role.name,
       'avatar_url': avatarUrl,

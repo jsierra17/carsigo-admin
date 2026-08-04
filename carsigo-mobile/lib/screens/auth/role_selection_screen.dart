@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
+
+const _bg = Color(0xFF0a0a0b);
+const _surface = Color(0xFF141416);
+const _surfaceLight = Color(0xFF1c1c1e);
+const _border = Color(0xFF2a2a2c);
+const _cyan = Color(0xFF00E5FF);
+const _textPrimary = Color(0xFFFFFFFF);
+const _textSecondary = Color(0xFF94949E);
 
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
@@ -10,39 +17,64 @@ class RoleSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      backgroundColor: _bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                '¿Como usaras CarSiGo?',
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: _surfaceLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _border, width: 2),
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Selecciona tu rol para continuar',
-                style: TextStyle(color: Colors.grey),
+              const SizedBox(height: 20),
+              Text(
+                '¿Cómo usarás CarSiGo?',
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: _textPrimary,
+                ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 8),
+              Text(
+                'Selecciona tu rol para continuar',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  color: _textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
               _RoleCard(
                 title: 'Pasajero',
-                description: 'Quiero pedir viajes rapidos y seguros',
+                description: 'Quiero pedir viajes rápidos y seguros',
                 icon: Icons.person_pin_circle,
-                color: Colors.blue,
-                onTap: () => _registerRole(ref, UserRole.passenger),
+                color: _cyan,
+                onTap: () => _registerRole(context, ref, UserRole.passenger),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _RoleCard(
                 title: 'Conductor',
-                description: 'Quiero generar ingresos con mi vehiculo',
+                description: 'Quiero generar ingresos con mi vehículo',
                 icon: Icons.directions_car,
-                color: Colors.green,
-                onTap: () => _registerRole(ref, UserRole.driver),
+                color: _green,
+                onTap: () => _registerRole(context, ref, UserRole.driver),
               ),
             ],
           ),
@@ -51,26 +83,38 @@ class RoleSelectionScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _registerRole(WidgetRef ref, UserRole role) async {
+  Future<void> _registerRole(
+    BuildContext context,
+    WidgetRef ref,
+    UserRole role,
+  ) async {
     final authService = ref.read(authServiceProvider);
     final user = authService.currentUser;
 
     if (user != null) {
       final existing = await authService.getUserProfile(user.id);
-      final profile = existing?.copyWith(role: role) ??
+      final profile =
+          existing?.copyWith(role: role) ??
           UserProfile(
             id: user.id,
             phone: user.phone ?? '',
-            name: user.userMetadata?['full_name'] ?? user.email?.split('@').first ?? '',
+            fullName:
+                user.userMetadata?['full_name'] ??
+                user.email?.split('@').first ??
+                '',
             role: role,
             avatarUrl: user.userMetadata?['avatar_url'],
             createdAt: DateTime.now(),
           );
       await authService.createProfile(profile);
       ref.invalidate(userProfileProvider);
+      if (context.mounted)
+        Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 }
+
+const _green = Color(0xFF22C55E);
 
 class _RoleCard extends StatelessWidget {
   final String title;
@@ -93,31 +137,51 @@ class _RoleCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
+          color: _surface,
           border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(width: 20),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _surfaceLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 24, color: color),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     description,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: _textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: color),
+            Icon(Icons.arrow_forward_ios, size: 14, color: color),
           ],
         ),
       ),

@@ -1,20 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { MapPin, Power, PowerOff, Search, Loader2, Save, Globe, Navigation, Layers, CheckCircle, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MapPin, Power, PowerOff, Search, Loader2, Save, Globe, Navigation, Layers, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { createGeofence, deleteGeofence, toggleGeofenceStatus, searchMunicipality } from './actions';
 import { useToast } from '@/contexts/ToastContext';
-import Map, {
-  Source,
-  Layer,
-  NavigationControl,
-  type ViewStateChangeEvent,
-} from 'react-map-gl/mapbox';
+import dynamic from 'next/dynamic';
 import type { Geometry } from 'geojson';
-import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+const ZoneMap = dynamic(() => import('./ZoneMap'), { ssr: false });
 
 type Zona = {
   id: string;
@@ -22,6 +16,14 @@ type Zona = {
   is_active: boolean;
   base_multiplier: number;
   boundaries: Geometry;
+};
+
+type NominatimResult = {
+  display_name: string;
+  geojson: Geometry;
+  boundingbox: [string, string, string, string];
+  type: string;
+  class: string;
 };
 
 type PreviewZone = {
@@ -34,16 +36,12 @@ export default function ZonasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
   const [previewZone, setPreviewZone] = useState<PreviewZone | null>(null);
+  const [selectedResultIndex, setSelectedResultIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const mapRef = useRef<any>(null);
   const toast = useToast();
-
-  const [viewState, setViewState] = useState({
-    longitude: -75.567,
-    latitude: 6.247,
-    zoom: 5
-  });
 
   const fetchZonas = useCallback(async () => {
     setIsLoading(true);
@@ -66,15 +64,31 @@ export default function ZonasPage() {
     fetchZonas();
   }, [fetchZonas]);
 
+  const selectResult = (results: NominatimResult[], index: number) => {
+    const match = results[index];
+    if (!match) return;
+    setSelectedResultIndex(index);
+    setPreviewZone({
+      name: match.display_name.split(',')[0],
+      geometry: match.geojson
+    });
+    const [latMin, latMax, lonMin, lonMax] = match.boundingbox.map(parseFloat);
+    const center: [number, number] = [(latMin + latMax) / 2, (lonMin + lonMax) / 2];
+    if (mapRef.current) {
+      mapRef.current.setView(center, 11);
+    }
+  };
+
   const handleSearchMunicipality = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
+    setSearchResults([]);
     setPreviewZone(null);
+    setSelectedResultIndex(null);
 
     try {
-      // Usar la Server Action en lugar de fetch directo para evitar CORS/Net errors
       const { data, success, error, message } = await searchMunicipality(searchQuery);
 
       if (!success || error) {
@@ -88,22 +102,8 @@ export default function ZonasPage() {
       }
 
       if (data && data.length > 0) {
-        const match = data[0];
-        // En este punto, searchMunicipality ya filtró que sea Polygon o MultiPolygon
-        setPreviewZone({
-          name: match.display_name.split(',')[0],
-          geometry: match.geojson
-        });
-
-        const [latMin, latMax, lonMin, lonMax] = match.boundingbox;
-        const lat = (parseFloat(latMin) + parseFloat(latMax)) / 2;
-        const lon = (parseFloat(lonMin) + parseFloat(lonMax)) / 2;
-
-        setViewState({
-          longitude: lon,
-          latitude: lat,
-          zoom: 11
-        });
+        setSearchResults(data);
+        selectResult(data, 0);
       }
     } catch (err) {
       console.error("Error en búsqueda:", err);
@@ -198,33 +198,67 @@ export default function ZonasPage() {
           </button>
         </form>
 
-        {previewZone && (
-          <div className="mt-6 p-6 bg-emerald-50 border border-emerald-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
-                <Navigation size={24} className="animate-pulse" />
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Área Detectada Correctamente</p>
-                <h4 className="text-xl font-black text-slate-800 tracking-tight">{previewZone.name}</h4>
-              </div>
+        {searchResults.length > 0 && (
+          <div className="mt-6 space-y-4 animate-in slide-in-from-top-4 duration-300">
+            {/* Lista de resultados */}
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {searchResults.map((result, idx) => {
+                const selected = selectedResultIndex === idx;
+                const areaKm2 = result.boundingbox
+                  ? ((parseFloat(result.boundingbox[3]) - parseFloat(result.boundingbox[2])) *
+                     (parseFloat(result.boundingbox[1]) - parseFloat(result.boundingbox[0])) * 111 * 111).toFixed(0)
+                  : '?';
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => selectResult(searchResults, idx)}
+                    className={`flex-shrink-0 p-4 rounded-2xl border-2 text-left transition-all ${
+                      selected
+                        ? 'bg-emerald-50 border-emerald-400 shadow-md'
+                        : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-2 h-2 rounded-full ${selected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span className="text-[10px] font-black text-slate-400 uppercase">{result.type || result.class}</span>
+                    </div>
+                    <p className="font-black text-slate-800 text-sm leading-tight">{result.display_name.split(',')[0]}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">{areaKm2} km² aprox.</p>
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setPreviewZone(null)}
-                className="px-6 py-4 text-slate-400 font-bold hover:text-slate-600"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateZone}
-                disabled={isSaving}
-                className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-3"
-              >
-                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                Habilitar Zona
-              </button>
-            </div>
+
+            {/* Botón Habilitar */}
+            {previewZone && (
+              <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
+                    <Navigation size={24} className="animate-pulse" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Área Seleccionada</p>
+                    <h4 className="text-xl font-black text-slate-800 tracking-tight">{previewZone.name}</h4>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setSearchResults([]); setPreviewZone(null); setSelectedResultIndex(null); }}
+                    className="px-6 py-4 text-slate-400 font-bold hover:text-slate-600"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleCreateZone}
+                    disabled={isSaving}
+                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-3"
+                  >
+                    {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                    Habilitar Zona
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -288,65 +322,15 @@ export default function ZonasPage() {
           </div>
         </div>
 
-        {/* Mapa Interactivo Outdoors (Verde) */}
+        {/* Mapa con Leaflet (sin WebGL) */}
         <div className="lg:col-span-8 h-[650px] bg-white rounded-[3rem] overflow-hidden border border-gray-100 shadow-xl relative">
-          <Map
-            {...viewState}
-            onMove={(evt: ViewStateChangeEvent) => setViewState(evt.viewState)}
-            onLoad={() => setIsMapLoaded(true)}
-            mapStyle="mapbox://styles/mapbox/outdoors-v12"
-            mapboxAccessToken={MAPBOX_TOKEN}
-            style={{ width: '100%', height: '100%' }}
-          >
-            <NavigationControl position="top-right" />
-
-            {/* Zonas Guardadas */}
-            {isMapLoaded && zonas.map((zona) => (
-              <Source id={`source-${zona.id}`} key={zona.id} type="geojson" data={{
-                type: 'Feature',
-                geometry: zona.boundaries as any,
-                properties: { name: zona.municipality_name }
-              }}>
-                <Layer
-                  id={`fill-${zona.id}`}
-                  type="fill"
-                  paint={{
-                    'fill-color': zona.is_active ? '#10b981' : '#ef4444',
-                    'fill-opacity': 0.15
-                  }}
-                />
-                <Layer
-                  id={`outline-${zona.id}`}
-                  type="line"
-                  paint={{
-                    'line-color': zona.is_active ? '#10b981' : '#b91c1c',
-                    'line-width': 2,
-                    'line-opacity': 0.5
-                  }}
-                />
-              </Source>
-            ))}
-
-            {/* Vista Previa */}
-            {isMapLoaded && previewZone && (
-              <Source id="preview-source" type="geojson" data={{
-                type: 'Feature',
-                geometry: previewZone.geometry as any,
-                properties: { name: previewZone.name }
-              }}>
-                <Layer
-                  id="p-fill"
-                  type="fill"
-                  paint={{ 'fill-color': '#3b82f6', 'fill-opacity': 0.3 }}
-                />
-                <Layer
-                  id="p-outline"
-                  type="line"
-                  paint={{ 'line-color': '#3b82f6', 'line-width': 3, 'line-dasharray': [2, 1] }}
-                />
-              </Source>
-            )}
-          </Map>
+          <ZoneMap zonas={zonas} previewZone={previewZone} mapRef={mapRef} />
+          <div className="absolute top-6 left-6 z-[1000]">
+            <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-200 flex items-center gap-3 shadow-sm pointer-events-none">
+              <Layers className="text-blue-500" size={18} />
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Capa Vectorial CarSiGo</span>
+            </div>
+          </div>
 
           <div className="absolute top-6 left-6">
             <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-200 flex items-center gap-3 shadow-sm">
