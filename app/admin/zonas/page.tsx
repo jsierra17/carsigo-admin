@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapPin, Power, PowerOff, Search, Loader2, Save, Globe, Navigation, Layers, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import { createGeofence, deleteGeofence, toggleGeofenceStatus, searchMunicipality } from './actions';
 import { useToast } from '@/contexts/ToastContext';
 import dynamic from 'next/dynamic';
@@ -46,7 +46,7 @@ export default function ZonasPage() {
   const fetchZonas = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('geofences')
         .select('id, municipality_name, is_active, base_multiplier, boundaries')
         .order('municipality_name', { ascending: true });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 
 export async function GET(req: Request) {
   try {
@@ -8,9 +8,9 @@ export async function GET(req: Request) {
     const lng = parseFloat(searchParams.get('lng') || '0')
     const radius_km = parseFloat(searchParams.get('radius_km') || '10')
 
-    const supabase = createAdminClient()
+    const db = createAdminClient()
 
-    const { data: activeDrivers, error } = await supabase
+    const { data: activeDrivers, error } = await db
       .from('driver_profiles')
       .select(`
         user_id,

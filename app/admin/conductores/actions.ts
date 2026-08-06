@@ -1,18 +1,18 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsAdmin } from '@/lib/auth'
 
 export async function toggleDriverStatus(driverId: string, currentStatus: string) {
   if (!(await checkIsAdmin())) return { error: 'Acceso Denegado' }
   
-  const adminSupabase = createAdminClient()
+  const adminDb = createAdminClient()
   let newStatus = 'active'
   if (currentStatus === 'active') newStatus = 'suspended'
   if (currentStatus === 'suspended') newStatus = 'active'
 
-  const { error } = await adminSupabase
+  const { error } = await adminDb
     .from('driver_profiles')
     .update({ status: newStatus })
     .eq('user_id', driverId)
@@ -25,8 +25,8 @@ export async function toggleDriverStatus(driverId: string, currentStatus: string
 
 export async function approveDriver(driverId: string) {
   if (!(await checkIsAdmin())) return { error: 'Acceso Denegado' }
-  const adminSupabase = createAdminClient()
-  const { error } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { error } = await adminDb
     .from('driver_profiles')
     .update({ status: 'active' })
     .eq('user_id', driverId)
@@ -38,8 +38,8 @@ export async function approveDriver(driverId: string) {
 
 export async function suspendDriver(driverId: string) {
   if (!(await checkIsAdmin())) return { error: 'Acceso Denegado' }
-  const adminSupabase = createAdminClient()
-  const { error } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { error } = await adminDb
     .from('driver_profiles')
     .update({ status: 'suspended' })
     .eq('user_id', driverId)

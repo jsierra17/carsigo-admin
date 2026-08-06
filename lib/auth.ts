@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/firebase/server'
+import { createAdminClient } from '@/lib/firebase/service'
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL || 'todoobraparabien1998@gmail.com'
 
 export async function getCurrentUser() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
   return user
 }
 
@@ -15,8 +15,8 @@ export async function getUserRole(): Promise<string | null> {
 
   if (user.email === OWNER_EMAIL) return 'superadmin'
 
-  const adminSupabase = createAdminClient()
-  const { data: userData } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { data: userData } = await adminDb
     .from('users')
     .select('role')
     .eq('id', user.id)

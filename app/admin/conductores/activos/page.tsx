@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/db';
 
 export default function ConductoresActivos() {
   const [drivers, setDrivers] = useState([]);
@@ -14,7 +14,7 @@ export default function ConductoresActivos() {
   async function fetchActiveDrivers() {
     setLoading(true);
     // Filtramos solo por los que tienen estado 'approved'
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('driver_profiles')
       .select('user_id, vehicle_type, plate, status, users(name, phone)')
       .eq('status', 'approved');

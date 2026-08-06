@@ -18,7 +18,7 @@ Web Admin: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS.
 
 App Móvil: Flutter (Lenguaje Dart) para compilación nativa en iOS y Android.
 
-Base de Datos & Auth: Supabase (PostgreSQL). SDKs: @supabase/supabase-js (Web) y supabase_flutter (Móvil).
+Base de Datos & Auth: Firebase (Firestore + Firebase Auth). SDKs: firebase (Web) y firebase-admin (Servidor).
 
 Geolocalización: PostGIS (Backend), Mapbox GL JS (Web) y mapbox_maps_flutter (Móvil).
 
@@ -29,7 +29,7 @@ Geolocalización: PostGIS (Backend), Mapbox GL JS (Web) y mapbox_maps_flutter (M
  │    ├── /admin           # Panel Administrativo (Dashboard, Conductores, Zonas, Finanzas)
  │    └── /login           # Autenticación Web
  ├── /components           # Componentes reutilizables de React (UI)
- ├── /lib                  # Utilidades core web (supabase.ts, types, etc.)
+ ├── /lib                  # Utilidades core web (firebase/, db.ts, types, etc.)
  ├── /carsigo-mobile       # Sub-proyecto: Aplicación Móvil (FLUTTER / DART)
  │    ├── /lib             # Código fuente de Flutter (main.dart, screens, widgets)
  │    └── pubspec.yaml     # Dependencias de Flutter
@@ -42,13 +42,13 @@ Geolocalización: PostGIS (Backend), Mapbox GL JS (Web) y mapbox_maps_flutter (M
 
 ✅ Fase 1: Arquitectura de Base de Datos
 
-[x] Crear proyecto en Supabase.
+[x] Crear proyecto en Firebase.
 
-[x] Habilitar extensión PostGIS.
+[x] Configurar Firestore.
 
-[x] Crear tablas core (Users, Driver_Profiles, Geofences, Wallets).
+[x] Crear colecciones core (users, driver_profiles, geofences, wallets).
 
-[x] Configurar llaves y apagar RLS temporalmente para desarrollo.
+[x] Configurar llaves y reglas de seguridad para desarrollo.
 
 ✅ Fase 2: Panel Administrativo Web (COMPLETADA)
 
@@ -68,13 +68,13 @@ Objetivo: Levantar el entorno móvil nativo para Pasajeros y Conductores.
 
 [ ] Inicializar proyecto de Flutter en el directorio /carsigo-mobile.
 
-[ ] Configurar el archivo pubspec.yaml con dependencias clave (supabase_flutter, flutter_riverpod o provider para estado, go_router para navegación).
+[ ] Configurar el archivo pubspec.yaml con dependencias clave (firebase_flutter, flutter_riverpod o provider para estado, go_router para navegación).
 
-[ ] Configurar variables de entorno en Flutter para las llaves de Supabase.
+[ ] Configurar variables de entorno en Flutter para las llaves de Firebase.
 
 [ ] Crear estructura de carpetas dentro de carsigo-mobile/lib (screens, widgets, services).
 
-[ ] Integrar Supabase Auth (Pantallas de Login/Registro para Pasajero y Conductor).
+[ ] Integrar Firebase Auth (Pantallas de Login/Registro para Pasajero y Conductor).
 
 🚧 Fase 4: Motor de Viajes en Flutter (Tiempo Real)
 
@@ -82,9 +82,9 @@ Objetivo: Flujo tipo inDrive (Oferta/Contraoferta) en la App.
 
 [ ] Integrar mapbox_maps_flutter para renderizar el mapa interactivo.
 
-[ ] Validar ubicación del usuario (GPS del dispositivo) contra la tabla Geofences (PostGIS).
+[ ] Validar ubicación del usuario (GPS del dispositivo) contra la colección Geofences (Firestore).
 
-[ ] Implementar Supabase Realtime en Dart para emitir y escuchar solicitudes de viaje.
+[ ] Implementar Firestore en tiempo real en Dart para emitir y escuchar solicitudes de viaje.
 
 [ ] UI de contraofertas y selección de conductores.
 
@@ -110,4 +110,4 @@ Objetivo: Blindar la plataforma.
 
 [ ] Botón de Pánico Inteligente.
 
-[ ] Encender reglas RLS en Supabase.
+[ ] Encender reglas de seguridad en Firestore.

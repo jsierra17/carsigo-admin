@@ -3,11 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { Users, Car, AlertCircle, Wallet, Radio, Loader2, Phone, Mail, Clock, ArrowUpRight } from 'lucide-react';
 import { getDashboardMetrics, getLatestDrivers } from './actions';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/firebase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardPage() {
-  const supabase = createClient();
+  const db = createClient();
   const { role, isLoading: authLoading } = useAuth();
 
   const [metrics, setMetrics] = useState({ pasajeros: 0, conductores: 0, pendientes: 0 });
@@ -35,7 +35,7 @@ export default function DashboardPage() {
   useEffect(() => {
     cargarDatos();
 
-    const canal = supabase
+    const canal = db
       .channel('dashboard-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
         setUltimaActualizacion(new Date());
@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
     channelRef.current = canal;
     return () => { 
-      if (channelRef.current) supabase.removeChannel(channelRef.current); 
+      if (channelRef.current) db.removeChannel(channelRef.current); 
     };
   }, []);
 

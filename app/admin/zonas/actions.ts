@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient } from '@/lib/supabase/service';
+import { createAdminClient } from '@/lib/firebase/service';
 import { revalidatePath } from 'next/cache';
 import { checkIsAdmin } from '@/lib/auth';
 
@@ -14,9 +14,9 @@ function normalizeName(name: string): string {
 
 export async function createGeofence(payload: { municipality_name: string, boundaries: any, is_active: boolean, base_multiplier: number }) {
   if (!(await checkIsAdmin())) throw new Error('Acceso Denegado');
-  const supabase = createAdminClient();
+  const db = createAdminClient();
 
-  const { data: existing, error: fetchError } = await supabase
+  const { data: existing, error: fetchError } = await db
     .from('geofences')
     .select('municipality_name');
   if (fetchError) throw new Error(fetchError.message);
@@ -29,23 +29,23 @@ export async function createGeofence(payload: { municipality_name: string, bound
     throw new Error(`La zona "${payload.municipality_name.trim()}" ya está habilitada. No se permiten zonas duplicadas.`);
   }
 
-  const { error } = await supabase.from('geofences').insert([payload]);
+  const { error } = await db.from('geofences').insert([payload]);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/zonas');
 }
 
 export async function deleteGeofence(id: string) {
   if (!(await checkIsAdmin())) throw new Error('Acceso Denegado');
-  const supabase = createAdminClient();
-  const { error } = await supabase.from('geofences').delete().eq('id', id);
+  const db = createAdminClient();
+  const { error } = await db.from('geofences').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/zonas');
 }
 
 export async function toggleGeofenceStatus(id: string, currentStatus: boolean) {
   if (!(await checkIsAdmin())) throw new Error('Acceso Denegado');
-  const supabase = createAdminClient();
-  const { error } = await supabase.from('geofences').update({ is_active: !currentStatus }).eq('id', id);
+  const db = createAdminClient();
+  const { error } = await db.from('geofences').update({ is_active: !currentStatus }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/zonas');
 }

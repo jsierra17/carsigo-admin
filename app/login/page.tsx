@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { resetPassword } from './actions';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/firebase/client';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, ArrowRight, ArrowLeft, CheckCircle, Shield } from 'lucide-react';
 import Image from 'next/image';
@@ -23,8 +23,8 @@ export default function LoginAdmin() {
       try {
         const email = formData.get('email') as string;
         const password = formData.get('password') as string;
-        const supabase = createClient();
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const db = createClient();
+        const { error } = await db.auth.signInWithPassword({ email, password });
         if (error) setError(error.message);
         else router.push('/admin');
       } catch (err: any) {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Capa de compatibilidad: reimplementa el subconjunto de la API de Supabase
+// Capa de compatibilidad: reimplementa el subconjunto de la API de db
 // (auth.* y from(...).select/insert/update/delete/upsert) sobre Firebase
 // (Firestore + Auth), para que las pages/actions del panel no cambien.
 //

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/firebase/client';
 
 type AuthContextType = {
   user: any | null;
@@ -19,14 +19,14 @@ const AuthContext = createContext<AuthContextType>({
 const OWNER_EMAIL = process.env.NEXT_PUBLIC_OWNER_EMAIL || 'todoobraparabien1998@gmail.com';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const supabase = createClient();
+  const db = createClient();
   const router = useRouter();
   const [state, setState] = useState<AuthContextType>({ user: null, role: '', isLoading: true });
 
   useEffect(() => {
     async function resolverSesionServidor() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await db.auth.getUser();
 
         if (!user) {
           setState({ user: null, role: '', isLoading: false });
@@ -36,14 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Firmar el SDK del navegador para que las reglas de Firestore
         // (isSignedIn/isAdmin) no denieguen las lecturas/escrituras cliente.
-        await supabase.auth.ensureBrowserSession();
+        await db.auth.ensureBrowserSession();
 
         if (user.email === OWNER_EMAIL) {
           setState({ user, role: 'superadmin', isLoading: false });
           return;
         }
 
-        const { data: profile } = await supabase
+        const { data: profile } = await db
           .from('users')
           .select('role')
           .eq('id', user.id)
@@ -61,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     resolverSesionServidor();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = db.auth.onAuthStateChange(
       async (event: string, session: { user?: { id: string; email: string; user_metadata?: { name?: string | null } } | null } | null) => {
         if (event === 'SIGNED_OUT') {
           // El auth de Firebase del navegador no mantiene sesión (la sesión real
           // vive en la cookie del servidor). Verificar antes de redirigir:
           // solo salir si la cookie tampoco tiene sesión.
-          const server = await supabase.auth.getUser();
+          const server = await db.auth.getUser();
           if (!server.data?.user) {
             setState({ user: null, role: '', isLoading: false });
             router.push('/login');
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          const { data: profile } = await supabase
+          const { data: profile } = await db
             .from('users')
             .select('role')
             .eq('id', user.id)

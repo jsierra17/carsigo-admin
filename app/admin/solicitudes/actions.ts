@@ -1,14 +1,14 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsAdmin } from '@/lib/auth'
 
 export async function reviewDriverApplication(id: string, status: 'approved' | 'rejected') {
   if (!(await checkIsAdmin())) return { error: 'Acceso Denegado' }
 
-  const adminSupabase = createAdminClient()
-  const { data: app, error: appError } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { data: app, error: appError } = await adminDb
     .from('driver_applications')
     .select('user_id, vehicle_type, plate')
     .eq('id', id)
@@ -16,7 +16,7 @@ export async function reviewDriverApplication(id: string, status: 'approved' | '
 
   if (appError || !app) return { error: appError?.message || 'Solicitud no encontrada' }
 
-  const { error } = await adminSupabase
+  const { error } = await adminDb
     .from('driver_applications')
     .update({ status, reviewed_at: new Date().toISOString() })
     .eq('id', id)
@@ -25,8 +25,8 @@ export async function reviewDriverApplication(id: string, status: 'approved' | '
 
   // Si se aprueba, actualizar rol y crear driver_profile
   if (status === 'approved') {
-    await adminSupabase.from('users').update({ role: 'driver' }).eq('id', app.user_id)
-    await adminSupabase.from('driver_profiles').upsert({
+    await adminDb.from('users').update({ role: 'driver' }).eq('id', app.user_id)
+    await adminDb.from('driver_profiles').upsert({
       user_id: app.user_id,
       vehicle_type: app.vehicle_type,
       plate: app.plate,
@@ -41,8 +41,8 @@ export async function reviewDriverApplication(id: string, status: 'approved' | '
 export async function listDriverApplications(filter: 'all' | 'pending' | 'approved' | 'rejected') {
   if (!(await checkIsAdmin())) return { data: null, error: 'Acceso Denegado' }
 
-  const adminSupabase = createAdminClient()
-  let query = adminSupabase.from('driver_applications').select('*').order('created_at', { ascending: false })
+  const adminDb = createAdminClient()
+  let query = adminDb.from('driver_applications').select('*').order('created_at', { ascending: false })
 
   if (filter !== 'all') {
     query = query.eq('status', filter)

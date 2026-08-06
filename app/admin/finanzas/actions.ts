@@ -1,14 +1,14 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
 export async function getSettlements() {
   if (!(await checkIsSuperAdmin())) return []
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('settlements')
       .select('*')
       .order('created_at', { ascending: false })
@@ -24,12 +24,12 @@ export async function getTripStats() {
   if (!(await checkIsSuperAdmin())) {
     return { conductoresActivos: 0, volumenTotal: 0, comisionCarSiGo: 0, tieneDataReal: false }
   }
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   try {
     const [conductoresRes, walletsRes, tripsRes] = await Promise.all([
-      supabase.from('driver_profiles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('wallets').select('balance'),
-      supabase.from('trips').select('fare_amount, commission_amount, status').eq('status', 'completed')
+      db.from('driver_profiles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      db.from('wallets').select('balance'),
+      db.from('trips').select('fare_amount, commission_amount, status').eq('status', 'completed')
     ]);
 
     const conductoresActivos = conductoresRes.count || 0;
@@ -66,12 +66,12 @@ export async function performSettlement(data: {
   volumenBase: number
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
-  const supabase = createAdminClient()
+  const db = createAdminClient()
 
   const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const referencia = `LIQ-${fecha}-${Math.floor(Math.random() * 9000) + 1000}`
 
-  const { error } = await supabase
+  const { error } = await db
     .from('settlements')
     .insert([{
       total_amount: data.amount,

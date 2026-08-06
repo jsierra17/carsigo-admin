@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/firebase/client'
 import { useRouter } from 'next/navigation'
 import { Lock, Loader2, CheckCircle, ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 
 export default function ResetPasswordPage() {
-  const supabase = createClient()
+  const db = createClient()
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +24,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true)
     setError(null)
 
-    const { error: updateError } = await supabase.auth.updateUser({
+    const { error: updateError } = await db.auth.updateUser({
       password,
     })
 

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
     const body = await req.json()
     const { status, driver_id, driver_lat, driver_lng } = body
-    const supabase = createAdminClient()
+    const db = createAdminClient()
 
     const updates: Record<string, any> = {}
     if (status) updates.status = status
@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (status === 'active') updates.started_at = new Date().toISOString()
     if (status === 'completed') updates.completed_at = new Date().toISOString()
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('trips')
       .update(updates)
       .eq('id', id)
@@ -35,8 +35,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const supabase = createAdminClient()
-    const { data, error } = await supabase.from('trips').select('*').eq('id', id).single()
+    const db = createAdminClient()
+    const { data, error } = await db.from('trips').select('*').eq('id', id).single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data)
   } catch (err: any) {

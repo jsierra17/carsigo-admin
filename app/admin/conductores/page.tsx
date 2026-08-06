@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { Search, Filter, ShieldAlert, CheckCircle, Clock, MoreVertical, Car, Phone, Mail, UserCheck, UserX, AlertTriangle, Eye } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/db';
 import { approveDriver, suspendDriver, toggleDriverStatus } from './actions';
 
 type Conductor = {
@@ -30,7 +30,7 @@ export default function ConductoresPage() {
   const fetchConductores = async (termino = '', estado = 'all') => {
     setIsLoading(true);
     try {
-      let query = supabase
+      let query = db
         .from('users')
         .select(`
           id, name, phone, email, created_at,

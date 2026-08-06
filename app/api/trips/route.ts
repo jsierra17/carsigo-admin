@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { calculateFare } from '@/lib/pricing-engine'
 
 export async function POST(req: Request) {
@@ -12,11 +12,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    const supabase = createAdminClient()
+    const db = createAdminClient()
 
     const fare = await calculateFare({ vehicle_type, distance_km: distance_km || 0, duration_min: duration_min || 0 })
 
-    const { data: trip, error } = await supabase
+    const { data: trip, error } = await db
       .from('trips')
       .insert({
         passenger_id,
@@ -50,8 +50,8 @@ export async function GET(req: Request) {
     const driver_id = searchParams.get('driver_id')
     const passenger_id = searchParams.get('passenger_id')
 
-    const supabase = createAdminClient()
-    let query = supabase.from('trips').select('*').order('created_at', { ascending: false })
+    const db = createAdminClient()
+    let query = db.from('trips').select('*').order('created_at', { ascending: false })
 
     if (status) query = query.eq('status', status)
     if (driver_id) query = query.eq('driver_id', driver_id)

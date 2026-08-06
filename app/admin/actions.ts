@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { checkIsAdmin } from '@/lib/auth'
 
 /**
@@ -12,12 +12,12 @@ export async function getDashboardMetrics() {
     return { pasajeros: 0, conductores: 0, pendientes: 0 }
   }
 
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   try {
     const [pasajerosRes, conductoresRes, pendientesRes] = await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'passenger'),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'driver'),
-      supabase.from('driver_profiles').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+      db.from('users').select('*', { count: 'exact', head: true }).eq('role', 'passenger'),
+      db.from('users').select('*', { count: 'exact', head: true }).eq('role', 'driver'),
+      db.from('driver_profiles').select('*', { count: 'exact', head: true }).eq('status', 'pending')
     ])
 
     return {
@@ -37,9 +37,9 @@ export async function getDashboardMetrics() {
 export async function getLatestDrivers(limit = 5) {
   if (!(await checkIsAdmin())) return []
 
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('users')
       .select('id, name, phone, email, created_at')
       .eq('role', 'driver')
@@ -63,9 +63,9 @@ export async function getLatestDrivers(limit = 5) {
 export async function searchDrivers(query: string) {
   if (!(await checkIsAdmin())) return null
 
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('users')
       .select('id, name, phone, status, driver_profiles ( vehicle_type, plate, total_rides, suspension_end_date )')
       .eq('role', 'driver')

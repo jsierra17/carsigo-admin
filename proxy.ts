@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { SESSION_COOKIE, ROLE_COOKIE, STATUS_COOKIE } from '@/lib/supabase/server'
+import { SESSION_COOKIE, ROLE_COOKIE, STATUS_COOKIE } from '@/lib/firebase/server'
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

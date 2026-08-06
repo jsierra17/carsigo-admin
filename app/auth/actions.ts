@@ -2,22 +2,22 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/service'
-import { SESSION_COOKIE, ROLE_COOKIE, STATUS_COOKIE } from '@/lib/supabase/server'
+import { createClient } from '@/lib/firebase/server'
+import { createAdminClient } from '@/lib/firebase/service'
+import { SESSION_COOKIE, ROLE_COOKIE, STATUS_COOKIE } from '@/lib/firebase/server'
 import { getFirebaseAdmin } from '@/lib/firebase/admin'
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL
 
 export async function getMyRole() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
   if (!user) return null
 
   if (OWNER_EMAIL && user.email === OWNER_EMAIL) return 'superadmin'
 
-  const adminSupabase = createAdminClient()
-  const { data: profile } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { data: profile } = await adminDb
     .from('users')
     .select('role')
     .eq('id', user.id)
@@ -28,16 +28,16 @@ export async function getMyRole() {
 
 /** Devuelve el usuario + rol de la sesión del servidor (usado por el cliente). */
 export async function getSessionCompat() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const db = await createClient()
+  const { data: { user } } = await db.auth.getUser()
   if (!user) return { user: null, role: null, status: null }
 
   if (OWNER_EMAIL && user.email === OWNER_EMAIL) {
     return { user, role: 'superadmin', status: 'active' }
   }
 
-  const adminSupabase = createAdminClient()
-  const { data: profile } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { data: profile } = await adminDb
     .from('users')
     .select('role, status')
     .eq('id', user.id)
@@ -48,8 +48,8 @@ export async function getSessionCompat() {
 
 /** Cierra la sesión del servidor (borra la cookie). */
 export async function signOutCompat() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
+  const db = await createClient()
+  await db.auth.signOut()
   return { success: true }
 }
 
@@ -61,8 +61,8 @@ export async function signOutCompat() {
  */
 export async function getBrowserSessionToken() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const db = await createClient()
+    const { data: { user } } = await db.auth.getUser()
     if (!user) return { token: null, error: 'No hay sesión activa' }
 
     const admin = getFirebaseAdmin()

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/firebase/client';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, ChevronDown } from 'lucide-react';
@@ -10,7 +10,7 @@ import { LogOut, ChevronDown } from 'lucide-react';
  * Header del Panel Admin.
  */
 export default function Header() {
-  const supabase = createClient();
+  const db = createClient();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -30,7 +30,7 @@ export default function Header() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     router.push('/login');
   };
 

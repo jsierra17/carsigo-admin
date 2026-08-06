@@ -1,13 +1,13 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
 export async function getDynamicPricingRules() {
   if (!(await checkIsSuperAdmin())) return []
-  const supabase = createAdminClient()
-  const { data } = await supabase
+  const db = createAdminClient()
+  const { data } = await db
     .from('dynamic_pricing_rules')
     .select('*')
     .order('priority', { ascending: false })
@@ -32,8 +32,8 @@ export async function createDynamicPricingRule(payload: {
   priority?: number
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
-  const supabase = createAdminClient()
-  const { error } = await supabase.from('dynamic_pricing_rules').insert([{ ...payload, is_active: true }])
+  const db = createAdminClient()
+  const { error } = await db.from('dynamic_pricing_rules').insert([{ ...payload, is_active: true }])
   if (error) return { error: error.message }
   revalidatePath('/admin/precio-dinamico')
   return { success: true }
@@ -57,8 +57,8 @@ export async function updateDynamicPricingRule(id: string, payload: Partial<{
   priority: number
 }>) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
-  const supabase = createAdminClient()
-  const { error } = await supabase.from('dynamic_pricing_rules').update(payload).eq('id', id)
+  const db = createAdminClient()
+  const { error } = await db.from('dynamic_pricing_rules').update(payload).eq('id', id)
   if (error) return { error: error.message }
   revalidatePath('/admin/precio-dinamico')
   return { success: true }
@@ -66,16 +66,16 @@ export async function updateDynamicPricingRule(id: string, payload: Partial<{
 
 export async function deleteDynamicPricingRule(id: string) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
-  const supabase = createAdminClient()
-  const { error } = await supabase.from('dynamic_pricing_rules').delete().eq('id', id)
+  const db = createAdminClient()
+  const { error } = await db.from('dynamic_pricing_rules').delete().eq('id', id)
   if (error) return { error: error.message }
   revalidatePath('/admin/precio-dinamico')
   return { success: true }
 }
 
 export async function getGeofences() {
-  const supabase = createAdminClient()
-  const { data } = await supabase
+  const db = createAdminClient()
+  const { data } = await db
     .from('geofences')
     .select('id, municipality_name')
     .eq('is_active', true)

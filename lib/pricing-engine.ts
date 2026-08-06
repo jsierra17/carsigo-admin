@@ -1,4 +1,4 @@
-import { createAdminClient } from './supabase/service'
+import { createAdminClient } from './firebase/service'
 
 export type VehicleType = 'moto' | 'car'
 export type DayType = 'weekday' | 'weekend' | 'special'
@@ -61,12 +61,12 @@ function getDayType(date: Date): DayType {
 }
 
 export async function calculateFare(input: PricingInput): Promise<PricingBreakdown> {
-  const supabase = createAdminClient()
+  const db = createAdminClient()
   const dt = input.datetime || new Date()
   const dayType = getDayType(dt)
   const currentTime = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
 
-  const { data: schedules } = await supabase
+  const { data: schedules } = await db
     .from('rate_schedules')
     .select('*')
     .eq('vehicle_type', input.vehicle_type)
@@ -87,7 +87,7 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
     return currentTime >= s.shift_start && currentTime < s.shift_end
   }) || (schedules || [])[0]
 
-  const { data: cards } = await supabase
+  const { data: cards } = await db
     .from('rate_cards')
     .select('*')
     .eq('vehicle_type', input.vehicle_type)
@@ -110,7 +110,7 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
 
   let subtotal = currentBaseFee + extraKmCharge
 
-  const { data: rules } = await supabase
+  const { data: rules } = await db
     .from('dynamic_pricing_rules')
     .select('*')
     .eq('is_active', true)

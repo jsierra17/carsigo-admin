@@ -6,8 +6,8 @@ CarSiGo es una plataforma de movilidad hiperlocal para Colombia. Consta de dos a
 
 | App | Stack | Propósito |
 |-----|-------|-----------|
-| **carsigo-admin** | Next.js 16 + Supabase | Panel web de administración |
-| **carsigo-mobile** | Flutter 3 + Supabase | App móvil para pasajeros y conductores |
+| **carsigo-admin** | Next.js 16 + Firebase | Panel web de administración |
+| **carsigo-mobile** | Flutter 3 + Firebase | App móvil para pasajeros y conductores |
 
 ---
 
@@ -17,7 +17,7 @@ CarSiGo es una plataforma de movilidad hiperlocal para Colombia. Consta de dos a
 - **Framework:** Next.js 16 (App Router)
 - **Lenguaje:** TypeScript 5
 - **Estilos:** Tailwind CSS 4
-- **Backend:** Supabase (PostgreSQL + Auth + Realtime)
+- **Backend:** Firebase (Firestore + Firebase Auth)
 - **Mapas:** Mapbox GL JS + react-map-gl
 - **PDFs:** jsPDF + jspdf-autotable
 - **Iconos:** Lucide React
@@ -26,8 +26,8 @@ CarSiGo es una plataforma de movilidad hiperlocal para Colombia. Consta de dos a
 - **Framework:** Flutter 3.10+
 - **Lenguaje:** Dart
 - **Estado:** Riverpod 2
-- **Backend:** Supabase Flutter SDK
-- **Auth:** Supabase Auth (Google OAuth vía google_sign_in)
+- **Backend:** Firebase Flutter SDK
+- **Auth:** Firebase Auth (Google OAuth vía google_sign_in)
 - **UI:** Material 3 + Google Fonts (Poppins)
 
 ---
@@ -71,24 +71,27 @@ carsigo-admin/
 │   └── ToastContext.tsx          # Notificaciones toast
 ├── lib/
 │   ├── auth.ts                   # Utilidades compartidas de autorización
-│   ├── supabase.ts               # Helpers de datos (dashboard metrics, etc.)
+│   ├── db.ts                     # Singleton Firebase para componentes cliente
 │   ├── types.ts                  # Tipos compartidos (Driver, Zone)
 │   ├── pdfGenerator.ts           # Generación de PDF de liquidaciones
-│   └── supabase/
-│       ├── client.ts             # Cliente Supabase browser (anon key)
-│       ├── server.ts             # Cliente Supabase SSR (cookies)
-│       └── service.ts            # Cliente Supabase admin (service_role key)
-├── middleware.ts                 # Protección de rutas a nivel servidor
+│   └── firebase/
+│       ├── client.ts             # Cliente Firebase browser
+│       ├── server.ts             # Firebase SSR (cookies)
+│       ├── service.ts            # Cliente Firebase admin (service account)
+│       ├── admin-fs.ts           # Firestore admin (server actions)
+│       ├── rest-auth.ts          # Auth admin via REST
+│       └── firestore-compat.ts   # Capa de compatibilidad (API {data,error})
+├── proxy.ts                      # Protección de rutas a nivel servidor
 └── .env.local                    # Variables de entorno (NO COMMITEAR)
 
 carsigo-mobile/
 ├── lib/
-│   ├── main.dart                 # Entry point, inicialización Supabase
+│   ├── main.dart                 # Entry point, inicialización Firebase
 │   ├── models/user_profile.dart  # Modelo UserProfile
 │   ├── providers/auth_provider.dart  # Riverpod providers de auth
 │   ├── services/
-│   │   ├── auth_service.dart     # Servicio de auth Supabase (Google, email, OTP)
-│   │   └── supabase_service.dart # Inicialización de Supabase Flutter
+│   │   ├── auth_service.dart     # Servicio de auth Firebase (Google, email, OTP)
+│   │   └── firebase_service.dart # Inicialización de Firebase Flutter
 │   └── screens/
 │       ├── onboarding/           # Onboarding + Google Sign-In
 │       ├── auth/                 # Login, OTP, selección de rol
@@ -108,23 +111,22 @@ carsigo-mobile/
 │ WEB ADMIN                                                   │
 │                                                             │
 │  /login  →  email/password  →  signInWithPassword           │
-│          →  Google OAuth     →  signInWithOAuth              │
-│              → redirect Google → /auth/callback              │
-│              → exchangeCodeForSession → /admin               │
+│          →  Google OAuth     →  signInWithPopup               │
+│              → redirect Google → /auth/callback               │
+│              → intercambia credenciales → /admin              │
 │                                                             │
-│  /reset-password  →  resetPasswordForEmail (email link)     │
+│  /reset-password  →  sendPasswordResetEmail (email link)     │
 │                   →  /reset-password?token=...               │
-│                   →  updateUser({ password })                │
+│                   →  updatePassword({ password })            │
 │                                                             │
-│  middleware.ts:                                              │
+│  proxy.ts:                                                   │
 │    - Rutas públicas: /, /login, /auth/*, /reset-password    │
 │    - Rutas protegidas: /admin/* → redirect /login si no auth │
 │    - Si ya autenticado y va a /login → redirect /admin      │
 │                                                             │
 │  AuthContext:                                                │
-│    - Al montar: getUser() → consulta rol en DB              │
-│    - onAuthStateChange: SIGNED_OUT → redirect /login        │
-│                        TOKEN_REFRESHED → refresca sesión    │
+│    - Al montar: getUser() → consulta rol en Firestore       │
+│    - onAuthStateChanged: SIGNED_OUT → redirect /login        │
 │    - Owner bypass: OWNER_EMAIL → rol 'superadmin'           │
 └─────────────────────────────────────────────────────────────┘
 
@@ -133,12 +135,12 @@ carsigo-mobile/
 │                                                             │
 │  Onboarding → Google Sign-In                                │
 │    google_sign_in → idToken                                 │
-│    supabase.auth.signInWithIdToken(google, idToken)         │
+│    FirebaseAuth -> GoogleAuthProvider → sesión               │
 │                                                             │
 │  Login → Email/Password → signInWithPassword                │
-│       → Registro → signUp (email + password + nombre)       │
+│       → Registro → createUser (email + password + nombre)   │
 │                                                             │
-│  Selección de rol → upsert en public.users                  │
+│  Selección de rol → actualiza doc en users                  │
 │                                                             │
 │  AuthGate (main.dart):                                      │
 │    - authStateChanges → si no hay sesión → Onboarding       │
@@ -157,32 +159,32 @@ carsigo-mobile/
 
 ### Owner bypass
 
-El email definido en `OWNER_EMAIL` (.env.local) siempre recibe rol `superadmin`, sin necesidad de existir en la tabla `public.users`. Esto garantiza que el dueño nunca pierda acceso.
+El email definido en `OWNER_EMAIL` (.env.local) siempre recibe rol `superadmin`, sin necesidad de existir en la colección `users`. Esto garantiza que el dueño nunca pierda acceso.
 
 ### Mecanismo de autorización
 
 - **Servidor (server actions):** `lib/auth.ts` exporta `checkIsAdmin()` y `checkIsSuperAdmin()`. Cada action file las importa y verifica antes de ejecutar operaciones.
 - **Cliente (UI):** `AuthContext` expone `{ user, role, isLoading }`. El `Sidebar` filtra menú por rol. La página de Dashboard oculta widgets según rol.
-- **Middleware:** `middleware.ts` bloquea acceso a `/admin/*` si no hay sesión.
+- **Proxy:** `proxy.ts` bloquea acceso a `/admin/*` si no hay sesión.
 
 ---
 
-## Base de Datos (Supabase)
+## Base de Datos (Firestore)
 
-### Tablas principales
+### Colecciones principales
 
-| Tabla | Propósito |
-|-------|-----------|
-| `public.users` | Perfiles de todos los usuarios (id, name, email, phone, role, status) |
-| `public.driver_profiles` | Datos de conductor (vehicle_type, plate, status, total_rides, user_id FK) |
-| `public.trips` | Viajes (passenger_id, driver_id, status, fare_amount, commission_amount, pickup/dropoff) |
-| `public.geofences` | Geocercas (municipality_name, boundaries GeoJSON, is_active, base_multiplier) |
-| `public.settlements` | Liquidaciones (total_amount, drivers_involved, volume_base, reference, status) |
-| `public.wallets` | Billeteras de conductores (balance) |
+| Colección | Propósito |
+|-----------|-----------|
+| `users` | Perfiles de todos los usuarios (id, name, email, phone, role, status) |
+| `driver_profiles` | Datos de conductor (vehicle_type, plate, status, total_rides, user_id) |
+| `trips` | Viajes (passenger_id, driver_id, status, fare_amount, commission_amount, pickup/dropoff) |
+| `geofences` | Geocercas (municipality_name, boundaries GeoJSON, is_active, base_multiplier) |
+| `settlements` | Liquidaciones (total_amount, drivers_involved, volume_base, reference, status) |
+| `wallets` | Billeteras de conductores (balance) |
 
-### RLS (Row Level Security)
+### Reglas de seguridad
 
-Las tablas deben tener políticas RLS configuradas en Supabase para que:
+Configurar reglas en Firestore para que:
 - Usuarios autenticados lean su propio perfil
 - Admins lean/actualicen perfiles de otros
 - Superadmins tengan acceso total
@@ -195,9 +197,13 @@ Las tablas deben tener políticas RLS configuradas en Supabase para que:
 
 | Variable | Descripción |
 |----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima/pública de Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clave service_role (solo servidor, NUNCA exponer) |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | API key pública del proyecto Firebase |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Dominio de auth (proyecto.firebaseapp.com) |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | ID del proyecto Firebase |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Bucket de Storage |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID de messaging |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | App ID web |
+| `FIREBASE_SERVICE_ACCOUNT` | Ruta al JSON de service account (solo servidor, NUNCA exponer) |
 | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Token de Mapbox GL |
 | `NEXT_PUBLIC_SITE_URL` | URL base del sitio (default: http://localhost:3000) |
 | `OWNER_EMAIL` | Email del dueño con bypass de superadmin |
@@ -206,8 +212,8 @@ Las tablas deben tener políticas RLS configuradas en Supabase para que:
 
 | Variable | Descripción |
 |----------|-------------|
-| `SUPABASE_URL` | URL del proyecto Supabase |
-| `SUPABASE_ANON_KEY` | Clave anónima de Supabase |
+| `FIREBASE_API_KEY` | API key público de Firebase |
+| `FIREBASE_APP_ID` | App ID de Firebase |
 | `MAPBOX_ACCESS_TOKEN` | Token de Mapbox |
 | `GOOGLE_WEB_CLIENT_ID` | Client ID OAuth de Google (web) |
 | `GOOGLE_IOS_CLIENT_ID` | Client ID OAuth de Google (iOS) |
@@ -216,24 +222,24 @@ Las tablas deben tener políticas RLS configuradas en Supabase para que:
 
 ## Configuración Pendiente (Requisitos para QA/Producción)
 
-### Supabase Dashboard
-1. **Authentication > Providers > Google** — Habilitar con Client ID y Secret de Google Cloud
-2. **Authentication > URL Configuration**:
+### Firebase Console
+1. **Authentication > Sign-in method > Google** — Habilitar con Client ID y Secret de Google Cloud
+2. **Project settings > Your apps**:
    - Site URL: `http://localhost:3000` (dev) o URL de producción
-   - Redirect URLs: `http://localhost:3000/auth/callback`, `https://TU_PROYECTO.supabase.co/auth/v1/callback`
+   - Authorized domains: `localhost`, producción
 
 ### Google Cloud Console
 1. Crear OAuth 2.0 Client ID tipo "Web application"
 2. Authorized redirect URIs:
    - `http://localhost:3000/auth/callback`
-   - `https://gyfbazbvrgmwtwkkswdy.supabase.co/auth/v1/callback`
+   - URI de callback de Google Auth del proyecto Firebase
 3. Para Android: verificar SHA-1 fingerprint registrado
 4. Para iOS: configurar URL scheme
 
 ### Base de datos
-1. Crear todas las tablas listadas arriba en `public`
-2. Configurar políticas RLS
-3. Crear primer admin insertando directamente en `public.users` con rol `superadmin`
+1. Crear todas las colecciones listadas arriba en Firestore
+2. Configurar reglas de seguridad
+3. Crear primer admin insertando directamente en `users` con rol `superadmin`
 
 ---
 
@@ -263,7 +269,7 @@ flutter build apk  # Build Android
 - [x] Recuperación de contraseña
 - [x] Protección de rutas con middleware
 - [x] Roles: superadmin, admin
-- [x] Dashboard con métricas en tiempo real (Supabase Realtime)
+- [x] Dashboard con métricas en tiempo real (Firestore)
 - [x] Gestión de conductores (aprobar, suspender, buscar)
 - [x] Historial de viajes con filtros
 - [x] Geocercas con Mapbox GL (crear, activar/desactivar, eliminar)
@@ -289,8 +295,9 @@ flutter build apk  # Build Android
 
 ## Notas de Desarrollo
 
-- **Nunca exponer `SUPABASE_SERVICE_ROLE_KEY`** en el cliente. Solo se usa en server actions y `lib/supabase/service.ts`.
+- **Nunca exponer `FIREBASE_SERVICE_ACCOUNT`** en el cliente. Solo se usa en server actions y `lib/firebase/service.ts`.
 - **No modificar `OWNER_EMAIL`** a menos que cambie el dueño del proyecto.
-- **El middleware** usa `createServerClient` de `@supabase/ssr` con las cookies del request. No usar `createClient` del browser en el middleware.
+- **El proxy.ts** valida las cookies de sesión de Firebase (SESSION_COOKIE, ROLE_COOKIE, STATUS_COOKIE) con `lib/firebase/server.ts`.
 - **AuthContext** se monta solo dentro de `/admin/layout.tsx`. No está disponible en la landing page ni en el login.
-- **La app móvil** usa `google_sign_in` para obtener el ID token de Google, luego `supabase.auth.signInWithIdToken` para crear la sesión de Supabase. No usa Firebase para nada.
+- **Las server actions** usan el Admin SDK (`lib/firebase/service.ts`) para operaciones privilegiadas y devuelven `{data, error}`.
+- **La app móvil** usa `google_sign_in` para obtener el ID token de Google y Firebase Auth para crear la sesión.

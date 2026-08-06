@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MapPin, Navigation, CheckCircle, XCircle, Clock, Car, Filter, RefreshCw } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/firebase/client';
 
 type Viaje = {
   id: string;
@@ -49,7 +49,7 @@ const filtroTabs = [
 ];
 
 export default function ViajesPage() {
-  const supabase = createClient();
+  const db = createClient();
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filtro, setFiltro] = useState('all');
@@ -59,7 +59,7 @@ export default function ViajesPage() {
     setIsLoading(true);
     try {
       // Consultar la tabla 'trips' con joins a usuarios (pasajero y conductor)
-      let query = supabase
+      let query = db
         .from('trips')
         .select(`
           id, status, fare_amount, commission_amount,

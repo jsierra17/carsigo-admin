@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
@@ -14,10 +14,10 @@ export async function inviteAdmin(formData: FormData) {
   const name = formData.get('name') as string
   const phone = formData.get('phone') as string || 'N/A'
 
-  const adminSupabase = createAdminClient()
+  const adminDb = createAdminClient()
 
   // 1. Crear usuario en Auth
-  const { data: newAuthUser, error: createError } = await adminSupabase.auth.admin.createUser({
+  const { data: newAuthUser, error: createError } = await adminDb.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -28,7 +28,7 @@ export async function inviteAdmin(formData: FormData) {
 
   // 2. Insertar en tabla public.users
   if (newAuthUser.user) {
-    const { error: insertError } = await adminSupabase
+    const { error: insertError } = await adminDb
       .from('users')
       .insert([{
         id: newAuthUser.user.id,
@@ -47,8 +47,8 @@ export async function inviteAdmin(formData: FormData) {
 }
 
 export async function getAdmins() {
-  const adminSupabase = createAdminClient()
-  const { data, error } = await adminSupabase
+  const adminDb = createAdminClient()
+  const { data, error } = await adminDb
     .from('users')
     .select('id, name, email, role, status, phone')
     .in('role', ['admin', 'superadmin'])
@@ -63,10 +63,10 @@ export async function toggleAdminStatus(userId: string, currentStatus: string) {
     return { error: 'Acceso Denegado' }
   }
 
-  const adminSupabase = createAdminClient()
+  const adminDb = createAdminClient()
   const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
 
-  const { error } = await adminSupabase
+  const { error } = await adminDb
     .from('users')
     .update({ status: newStatus })
     .eq('id', userId)
@@ -86,18 +86,18 @@ export async function updateAdmin(userId: string, formData: FormData) {
   const email = formData.get('email') as string
   const phone = formData.get('phone') as string || 'N/A'
 
-  const adminSupabase = createAdminClient()
+  const adminDb = createAdminClient()
 
   // 1. Actualizar metadata en Auth (best-effort: cuentas legadas sin
   //    registro en AuthFirestore igualmente deben poder editar su perfil)
-  const { error: authError } = await adminSupabase.auth.admin.updateUserById(
+  const { error: authError } = await adminDb.auth.admin.updateUserById(
     userId,
     { email, user_metadata: { name, role: 'admin', phone } }
   )
   if (authError) console.error('Auth update (no bloquea):', authError)
 
   // 2. Actualizar en tabla public.users
-  const { error: updateError } = await adminSupabase
+  const { error: updateError } = await adminDb
     .from('users')
     .update({ name, email, phone })
     .eq('id', userId)

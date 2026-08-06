@@ -1,40 +1,37 @@
 ---
-description: Instructions building apps with Supabase
+description: Instructions building apps with Firebase
 globs: *
 alwaysApply: true
 ---
 
-# Supabase Documentation - Overview
+# Firebase Documentation - Overview
 
-## What is Supabase?
+## What is Firebase?
 
 Backend-as-a-service (BaaS) platform providing:
 
-- **Database**: PostgreSQL with PostgREST API
-- **Authentication**: Email/password + OAuth (Google, GitHub)
+- **Database**: Firestore (NoSQL, document/collection model)
+- **Authentication**: Email/password + Google OAuth
 - **Storage**: File upload/download
-- **AI**: Chat completions and image generation (OpenAI-compatible)
 - **Functions**: Serverless function deployment
-- **Realtime**: WebSocket pub/sub (database + client events)
+- **Realtime**: Firestore listeners / onSnapshot pub-sub
 
 ## Technology Stack
 
-This project uses **Supabase** (not InsForge) as its backend:
+This project uses **Firebase** as its backend:
 
-- **Database**: Supabase PostgreSQL + PostGIS
-- **Auth**: Supabase Auth (email/password + Google OAuth)
-- **Storage**: Supabase Storage
-- **Realtime**: Supabase Realtime
-- **SDK (Web)**: `@supabase/supabase-js` + `@supabase/ssr`
-- **SDK (Mobile)**: `supabase_flutter`
+- **Database**: Firestore
+- **Auth**: Firebase Auth (email/password + Google OAuth)
+- **SDK (Web)**: `firebase` + `firebase-admin`
+- **SDK (Mobile)**: `firebase_*` Flutter packages
 
 ## Important Notes
 
-- Use Supabase client libraries, never InsForge SDK
-- The project uses `@supabase/supabase-js` and `@supabase/ssr`
-- Database inserts require object format (not array wrapping)
-- Serverless functions are deployed via Supabase Edge Functions
-- AI operations use OpenAI-compatible API
+- Use Firebase client libraries, never Supabase or InsForge SDK
+- The project uses `firebase` (browser) and `firebase-admin` (server)
+- Admin SDK clients: `lib/firebase/service.ts` (admin), `lib/firebase/admin-fs.ts` (Firestore admin), `lib/firebase/rest-auth.ts` (Auth admin via REST)
+- Browser clients: `lib/firebase/client.ts`, `lib/firebase/server.ts` (SSR/cookies), `lib/firebase/firestore-compat.ts` (compat API layer)
+- Singleton for client components: `lib/db.ts`
 - API returns `{data, error}` structure for all operations
 
 ## Codebase Memory MCP

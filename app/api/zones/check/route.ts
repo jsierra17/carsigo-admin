@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/service'
+import { createAdminClient } from '@/lib/firebase/service'
 
 export async function POST(req: Request) {
   try {
@@ -9,9 +9,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'lat y lng son requeridos' }, { status: 400 })
     }
 
-    const supabase = createAdminClient()
+    const db = createAdminClient()
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('geofences')
       .select('id, municipality_name, base_multiplier, boundaries')
       .eq('is_active', true)
