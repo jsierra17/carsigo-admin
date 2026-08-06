@@ -11,32 +11,62 @@ service cloud.firestore {
       return isSignedIn() && (request.auth.token.role in ['admin', 'superadmin']);
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.role == 'superadmin';
+    }
+
     // ── users ───────────────────────────────────────────────
-    // El pasajero crea/actualiza su propio perfil (sin cambiar rol).
-    // Lectura: cualquier usuario autenticado (el panel lista usuarios vía server actions).
+    // Un nuevo usuario solo puede crear SU documento con rol 'passenger'
+    // y un subconjunto seguro de campos. El rol lo cambia exclusivamente el
+    // admin vía server actions (Admin SDK). Evita escalar a superadmin.
     match /users/{uid} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if (isSignedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role) || isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.role == 'passenger' &&
+        request.resource.data.diff(resource).affectedKeys().hasOnly([
+          'name', 'email', 'phone', 'role', 'status', 'created_at'
+        ]) &&
+        (request.resource.data.status == null || request.resource.data.status == 'pending');
+      allow update: if (isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.status == resource.data.status &&
+        // Impedir limpiar claves como role/status ni tocar solo is_available
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'email', 'phone', 'photo_url', 'device_token'
+        ])) || isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // ── driver_profiles (docId = user_id) ───────────────────
-    // El conductor solo puede tocar su flag is_available.
+    // El conductor solo toca su flag is_available sobre SÍ MISMO.
     match /driver_profiles/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == userId && request.resource.data.keys().hasOnly(['is_available']));
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_available']));
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == userId &&
+          request.resource.data.keys().hasOnly(['is_available']));
+      allow update: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_available']));
       allow delete: if isAdmin();
     }
 
     // ── driver_applications ─────────────────────────────────
-    // El postulante crea y lee la suya (pendiente); las decisiones las toma
-    // el admin vía server actions (Admin SDK, sin pasar por estas reglas).
+    // El postulante crea y lee la suya (pendiente); decisiones: admin vía
+    // Admin SDK.
     match /driver_applications/{id} {
       allow read: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid && request.resource.data.status == 'pending';
-      allow update, delete: if isAdmin();
+      allow create: if isSignedIn() &&
+        request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.keys().hasOnly([
+          'user_id', 'status', 'name', 'email', 'phone', 'vehicle_type',
+          'plate', 'created_at'
+        ]);
+      allow update: if isAdmin() &&
+        request.resource.data.status in ['pending', 'approved', 'rejected'];
+      allow delete: if isAdmin();
     }
 
     // ── settlements ─────────────────────────────────────────
@@ -70,8 +100,7 @@ service cloud.firestore {
     }
 
     // ── trips ───────────────────────────────────────────────
-    // Feed de conductores: trips pendientes sin asignar son legibles.
-    // Aceptación: un conductor puede asignarse un trip pendiente.
+    // Feed de conductores: solo trips pendientes sin asignar.
     match /trips/{tripId} {
       allow read: if isSignedIn() && (
         resource.data.passenger_id == request.auth.uid ||
@@ -79,16 +108,26 @@ service cloud.firestore {
         (resource.data.status == 'pending' && resource.data.driver_id == null) ||
         isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.passenger_id == request.auth.uid;
-      allow update: if isSignedIn() && (
-        resource.data.passenger_id == request.auth.uid ||
-        resource.data.driver_id == request.auth.uid ||
-        (resource.data.status == 'pending' && request.resource.data.driver_id == request.auth.uid) ||
-        // Declinar (no-op sobre un trip pendiente sin asignar): solo resetear driver_id/status
-        (resource.data.status == 'pending' && resource.data.driver_id == null && request.resource.data.driver_id == null) ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
+      allow create: if (isSignedIn() && request.resource.data.passenger_id == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.keys().hasOnly([
+          'passenger_id', 'status', 'pickup', 'dropoff', 'distance_km',
+          'fare_amount', 'driver_id', 'created_at', 'passenger_name'
+        ])) || isAdmin();
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.passenger_id == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          request.resource.data.status in ['cancelled', 'pending']) ||
+        (isSignedIn() && resource.data.driver_id == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          request.resource.data.status in ['accepted', 'started', 'completed', 'cancelled']) ||
+        // Asignación: un conductor se asigna un trip pendiente sin driver
+        (isSignedIn() &&
+          request.resource.data.driver_id == request.auth.uid &&
+          resource.data.status == 'pending' && resource.data.driver_id == null &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['driver_id', 'status']) &&
+          request.resource.data.status == 'accepted');
+      allow delete: if isSuperAdmin();
     }
 
     // ── trip_fare_breakdown ─────────────────────────────────
