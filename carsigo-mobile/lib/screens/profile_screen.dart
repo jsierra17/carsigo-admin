@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
+import '../theme/carsigo_theme.dart';
 
-const _bg = Color(0xFF0a0a0b);
-const _surface = Color(0xFF141416);
-const _surfaceLight = Color(0xFF1c1c1e);
-const _border = Color(0xFF2a2a2c);
-const _cyan = Color(0xFF00E5FF);
-const _textPrimary = Color(0xFFFFFFFF);
-const _textMuted = Color(0xFF52525B);
+const _bg = CarSiGoColors.bg;
+const _surface = CarSiGoColors.surface;
+const _surfaceLight = CarSiGoColors.surfaceLight;
+const _border = CarSiGoColors.border;
+const _cyan = CarSiGoColors.cyan;
+const _textPrimary = CarSiGoColors.textPrimary;
+const _textMuted = CarSiGoColors.textMuted;
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});

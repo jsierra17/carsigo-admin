@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:carsigo_mobile/services/preferences_service.dart';
+import 'package:carsigo_mobile/theme/carsigo_theme.dart';
 import 'package:carsigo_mobile/screens/onboarding/onboarding_screen.dart';
 import 'package:carsigo_mobile/screens/auth/login_screen.dart';
 import 'package:carsigo_mobile/screens/auth/role_selection_screen.dart';
@@ -30,11 +31,7 @@ class CarSiGoApp extends StatelessWidget {
     return MaterialApp(
       title: 'CarSiGo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-        fontFamily: 'Poppins',
-      ),
+      theme: buildCarSiGoTheme(),
       home: const AuthGate(),
     );
   }

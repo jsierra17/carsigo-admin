@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/carsigo_theme.dart';
 
-const _bg = Color(0xFF0a0a0b);
-const _surface = Color(0xFF141416);
-const _surfaceLight = Color(0xFF1c1c1e);
-const _border = Color(0xFF2a2a2c);
-const _cyan = Color(0xFF00E5FF);
-const _textPrimary = Color(0xFFFFFFFF);
-const _textSecondary = Color(0xFF94949E);
+const _bg = CarSiGoColors.bg;
+const _surface = CarSiGoColors.surface;
+const _surfaceLight = CarSiGoColors.surfaceLight;
+const _border = CarSiGoColors.border;
+const _cyan = CarSiGoColors.cyan;
+const _textPrimary = CarSiGoColors.textPrimary;
+const _textSecondary = CarSiGoColors.textSecondary;
 
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
@@ -122,7 +123,7 @@ class RoleSelectionScreen extends ConsumerWidget {
   }
 }
 
-const _green = Color(0xFF22C55E);
+const _green = CarSiGoColors.green;
 
 class _RoleCard extends StatelessWidget {
   final String title;

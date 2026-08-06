@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/carsigo_theme.dart';
 
-const _bg = Color(0xFF0a0a0b);
-const _textPrimary = Color(0xFFFFFFFF);
-const _textSecondary = Color(0xFF94949E);
+const _bg = CarSiGoColors.bg;
+const _textPrimary = CarSiGoColors.textPrimary;
+const _textSecondary = CarSiGoColors.textSecondary;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -42,7 +43,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Image.asset('assets/sub-logo.png', width: 180, height: 180, fit: BoxFit.contain),
+              SizedBox(
+                width: 240,
+                height: 240,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            CarSiGoColors.cyan.withValues(alpha: 0.14),
+                            CarSiGoColors.cyan.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Image.asset(
+                      'assets/sub-logo.png',
+                      width: 180,
+                      height: 180,
+                      fit: BoxFit.contain,
+                    ),
+                  ],
+                ),
+              ),
               const Spacer(flex: 1),
               Text(
                 'Regístrate para continuar',
