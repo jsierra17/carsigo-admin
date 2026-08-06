@@ -73,7 +73,14 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
     .eq('day_type', dayType)
     .eq('is_active', true)
 
-  const schedule = (schedules || []).find(s => {
+  const schedule = ((schedules || []) as Array<{
+      shift_start: string
+      shift_end: string
+      day_type: string
+      shift_label: string
+      base_fee: number
+      hourly_increase_percent: number
+    }>).find(s => {
     if (s.shift_end <= s.shift_start) {
       return currentTime >= s.shift_start || currentTime < s.shift_end
     }
@@ -114,9 +121,21 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
   let dynamicMultiplier = 1.0
   let dynamicRuleName: string | null = null
 
-  const matchingRule = (rules || []).find(r => {
+  const matchingRule = ((rules || []) as Array<{
+      rule_type: string
+      is_recurring?: boolean
+      specific_date?: string
+      date_from?: string
+      date_to?: string
+      days_of_week?: number[]
+      start_time?: string
+      end_time?: string
+      multiplier: number
+      name: string
+      vehicle_type?: string | null
+    }>).find(r => {
     if (r.rule_type === 'specific_date' && r.is_recurring) {
-      const ruleDate = new Date(r.specific_date)
+      const ruleDate = new Date(r.specific_date!)
       if (ruleDate.getMonth() !== undefined && ruleDate.getDate() !== undefined) {
         return dt.getMonth() === ruleDate.getMonth() && dt.getDate() === ruleDate.getDate()
       }

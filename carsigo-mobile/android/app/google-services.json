@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "621288515186",
+    "project_id": "carsigo-9e508",
+    "storage_bucket": "carsigo-9e508.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:621288515186:android:fdf0bfde98a6aa8e5484eb",
+        "android_client_info": {
+          "package_name": "com.carsigo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "621288515186-hd6nqmv58l654q4dn2o7boh49af6dqv0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHyBIdsnrFw-VaDmeg3kAA6Dxxo5V_72M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "621288515186-hd6nqmv58l654q4dn2o7boh49af6dqv0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

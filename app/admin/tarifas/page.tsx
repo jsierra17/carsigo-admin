@@ -137,7 +137,7 @@ export default function TarifasPage() {
 
   if (isLoading) return (
     <div className="max-w-7xl mx-auto p-20 flex justify-center">
-      <Loader2 className="animate-spin text-blue-500" size={40} />
+      <Loader2 className="animate-spin text-[#00E5FF]" size={40} />
     </div>
   )
 
@@ -146,31 +146,31 @@ export default function TarifasPage() {
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 shadow-sm">
+          <div className="p-2.5 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
             <Tag size={20} />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Tarifas</h1>
+          <h1 className="text-3xl font-black text-white tracking-tighter">Tarifas</h1>
         </div>
-        <p className="text-slate-500 font-medium">Configuración del modelo de tarifa progresiva por hora.</p>
+        <p className="text-slate-400 font-medium">Configuración del modelo de tarifa progresiva por hora.</p>
       </div>
 
       {/* Rate Cards Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Moto Card */}
-        <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/30">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <Bike size={18} className="text-[#00606b]" /> Moto
+        <div className="bg-[#141416] border border-white/5 rounded-3xl shadow-sm overflow-hidden">
+          <div className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/2">
+            <h3 className="text-lg font-black text-white flex items-center gap-2">
+              <Bike size={18} className="text-[#00E5FF]" /> Moto
             </h3>
           </div>
           {renderVehicleConfig('moto')}
           {renderScheduleTable('moto')}
         </div>
         {/* Carro Card */}
-        <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/30">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <Car size={18} className="text-[#00606b]" /> Carro <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">+60%</span>
+        <div className="bg-[#141416] border border-white/5 rounded-3xl shadow-sm overflow-hidden">
+          <div className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/2">
+            <h3 className="text-lg font-black text-white flex items-center gap-2">
+              <Car size={18} className="text-[#00E5FF]" /> Carro <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-orange-500/10 text-orange-400 border-orange-500/20">+60%</span>
             </h3>
           </div>
           {renderVehicleConfig('car')}
@@ -181,30 +181,30 @@ export default function TarifasPage() {
       {/* Schedule Form Modal */}
       {showScheduleForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight mb-6">
+          <div className="bg-[#141416] border border-white/10 p-8 rounded-3xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-white tracking-tight mb-6">
               {editingScheduleId ? 'Editar Horario' : 'Nuevo Horario'}
             </h3>
             <form onSubmit={handleSaveSchedule} className="space-y-5">
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre</label>
+                <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Nombre</label>
                 <input type="text" required value={scheduleForm.name}
                   onChange={e => setScheduleForm({ ...scheduleForm, name: e.target.value })}
-                  placeholder="Ej: Lun-Vie Mañana Moto" className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+                  placeholder="Ej: Lun-Vie Mañana Moto" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Vehículo</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Vehículo</label>
                   <select value={scheduleForm.vehicle_type} onChange={e => setScheduleForm({ ...scheduleForm, vehicle_type: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10">
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
                     <option value="moto">Moto</option>
                     <option value="car">Carro</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tipo de Día</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Tipo de Día</label>
                   <select value={scheduleForm.day_type} onChange={e => setScheduleForm({ ...scheduleForm, day_type: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10">
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
                     <option value="weekday">Lun-Vie</option>
                     <option value="weekend">Sáb-Dom</option>
                     <option value="special">Festivo</option>
@@ -213,7 +213,7 @@ export default function TarifasPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Turno</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Turno</label>
                   <select value={scheduleForm.shift_label} onChange={e => {
                     const isMorning = e.target.value === 'morning'
                     setScheduleForm({
@@ -223,50 +223,152 @@ export default function TarifasPage() {
                       shift_end: isMorning ? '16:29' : '04:29',
                     })
                   }}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10">
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
                     <option value="morning">Mañana</option>
                     <option value="evening">Tarde/Noche</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Base ($)</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Base ($)</label>
                   <input type="number" required min={0} value={scheduleForm.base_fee}
                     onChange={e => setScheduleForm({ ...scheduleForm, base_fee: Number(e.target.value) })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Inicio</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Inicio</label>
                   <input type="time" required value={scheduleForm.shift_start}
                     onChange={e => setScheduleForm({ ...scheduleForm, shift_start: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fin</label>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Fin</label>
                   <input type="time" required value={scheduleForm.shift_end}
                     onChange={e => setScheduleForm({ ...scheduleForm, shift_end: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10" />
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">% Aumento por Hora (compuesto)</label>
+                <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">% Aumento por Hora (compuesto)</label>
                 <div className="relative">
                   <input type="number" required min={0} max={100} step={0.5} value={scheduleForm.hourly_increase_percent}
                     onChange={e => setScheduleForm({ ...scheduleForm, hourly_increase_percent: Number(e.target.value) })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/10 pr-8" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">%</span>
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40 pr-8" />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black text-slate-500">%</span>
                 </div>
                 <p className="text-[9px] text-slate-400 mt-1">3% = cada hora sube 3% compuesto sobre el valor anterior</p>
               </div>
               <div className="flex items-center gap-4 pt-2">
                 <button type="submit" disabled={isSaving}
-                  className="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2 disabled:opacity-50">
+                  className="px-8 py-3 bg-[#00E5FF] hover:bg-[#00D0E8] text-[#131313] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                   {editingScheduleId ? 'Guardar Cambios' : 'Crear Horario'}
                 </button>
                 <button type="button" onClick={() => { setShowScheduleForm(false); setEditingScheduleId(null); setScheduleForm(defaultScheduleForm) }}
-                  className="px-6 py-3 text-slate-500 hover:text-slate-800 text-[10px] font-black uppercase tracking-widest">
+                  className="px-6 py-3 bg-white/5 border border-white/10 text-slate-300 hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rate Card Form Modal */}
+      {showCardForm && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#141416] border border-white/10 p-8 rounded-3xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-white tracking-tight mb-6">
+              {editingCardId ? 'Editar Tarifa' : 'Nueva Tarifa'}
+            </h3>
+            <form onSubmit={handleSaveCard} className="space-y-5">
+              <div>
+                <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Nombre</label>
+                <input type="text" required value={cardForm.name}
+                  onChange={e => setCardForm({ ...cardForm, name: e.target.value })}
+                  placeholder="Ej: Tarifa Moto - El Carmen de Bolívar" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Vehículo</label>
+                  <select value={cardForm.vehicle_type} onChange={e => setCardForm({ ...cardForm, vehicle_type: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
+                    <option value="moto">Moto</option>
+                    <option value="car">Carro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Base ($)</label>
+                  <input type="number" required min={0} value={cardForm.base_fee}
+                    onChange={e => setCardForm({ ...cardForm, base_fee: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Tarifa Mínima ($)</label>
+                  <input type="number" required min={0} value={cardForm.minimum_fare}
+                    onChange={e => setCardForm({ ...cardForm, minimum_fare: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Comisión (%)</label>
+                  <input type="number" required min={0} max={100} step={0.5} value={cardForm.commission_percent}
+                    onChange={e => setCardForm({ ...cardForm, commission_percent: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Precio por Km ($)</label>
+                  <input type="number" min={0} value={cardForm.price_per_km}
+                    onChange={e => setCardForm({ ...cardForm, price_per_km: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Precio por Minuto ($)</label>
+                  <input type="number" min={0} value={cardForm.price_per_minute}
+                    onChange={e => setCardForm({ ...cardForm, price_per_minute: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Km incluidos</label>
+                  <input type="number" min={0} value={cardForm.included_km}
+                    onChange={e => setCardForm({ ...cardForm, included_km: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Km extra (% del base)</label>
+                  <input type="number" min={0} max={500} value={cardForm.extra_km_percent}
+                    onChange={e => setCardForm({ ...cardForm, extra_km_percent: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Minutos de espera gratis</label>
+                  <input type="number" min={0} value={cardForm.free_waiting_minutes}
+                    onChange={e => setCardForm({ ...cardForm, free_waiting_minutes: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Espera por minuto ($)</label>
+                  <input type="number" min={0} value={cardForm.waiting_price_per_minute}
+                    onChange={e => setCardForm({ ...cardForm, waiting_price_per_minute: Number(e.target.value) })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 pt-2">
+                <button type="submit" disabled={isSaving}
+                  className="px-8 py-3 bg-[#00E5FF] hover:bg-[#00D0E8] text-[#131313] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {editingCardId ? 'Guardar Cambios' : 'Crear Tarifa'}
+                </button>
+                <button type="button" onClick={() => { setShowCardForm(false); setEditingCardId(null); setCardForm(defaultCardForm) }}
+                  className="px-6 py-3 bg-white/5 border border-white/10 text-slate-300 hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
                   Cancelar
                 </button>
               </div>
@@ -280,27 +382,39 @@ export default function TarifasPage() {
   function renderVehicleConfig(vehicleType: string) {
     const card = cards.find(c => c.vehicle_type === vehicleType)
     if (!card) return (
-      <div className="p-6 text-center text-sm text-slate-400">
+      <div className="p-6 text-center text-sm text-slate-500">
         Sin tarifa configurada.
       </div>
     )
     return (
-      <div className="p-6 grid grid-cols-3 gap-4 border-b border-gray-50">
-        <div className="text-center">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mínimo</p>
-          <p className="text-lg font-black text-slate-900">${card.minimum_fare.toLocaleString('es-CO')}</p>
+      <div>
+        <div className="p-6 grid grid-cols-3 gap-4 border-b border-white/5">
+          <div className="text-center">
+            <p className="text-xs text-slate-500 font-black uppercase tracking-widest">Mínimo</p>
+            <p className="text-lg font-black text-white">${card.minimum_fare.toLocaleString('es-CO')}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-slate-500 font-black uppercase tracking-widest">Comisión</p>
+            <p className="text-lg font-black text-emerald-400">{card.commission_percent}%</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-slate-500 font-black uppercase tracking-widest">Km incl.</p>
+            <p className="text-lg font-black text-white">{card.included_km} km</p>
+          </div>
+          <div className="text-center col-span-3">
+            <p className="text-xs text-slate-500 font-black uppercase tracking-widest">Km adicional</p>
+            <p className="text-sm font-black text-slate-300">+{card.extra_km_percent}% del valor base actual por km extra</p>
+          </div>
         </div>
-        <div className="text-center">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Comisión</p>
-          <p className="text-lg font-black text-emerald-600">{card.commission_percent}%</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Km incl.</p>
-          <p className="text-lg font-black text-slate-900">{card.included_km} km</p>
-        </div>
-        <div className="text-center col-span-3">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Km adicional</p>
-          <p className="text-sm font-black text-slate-700">+{card.extra_km_percent}% del valor base actual por km extra</p>
+        <div className="p-4 border-b border-white/5 flex items-center justify-center gap-2">
+          <button onClick={() => handleEditCard(card)}
+            className="px-6 py-2.5 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 text-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
+            <Pencil size={14} /> Editar Tarifa
+          </button>
+          <button onClick={() => handleDeleteCard(card.id, card.name)}
+            className="px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
+            <Trash2 size={14} /> Eliminar
+          </button>
         </div>
       </div>
     )
@@ -309,40 +423,40 @@ export default function TarifasPage() {
   function renderScheduleTable(vehicleType: string) {
     const rows = groupSchedules(vehicleType)
     return (
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-white/5">
         {rows.length === 0 ? (
-          <div className="p-6 text-center text-sm text-slate-400">Sin horarios configurados.</div>
+          <div className="p-6 text-center text-sm text-slate-500">Sin horarios configurados.</div>
         ) : rows.map(s => {
           const ShiftIcon = shiftLabels[s.shift_label]?.icon || Clock
           return (
-            <div key={s.id} className="p-5 hover:bg-slate-50/40 transition-colors">
+            <div key={s.id} className="p-5 hover:bg-[#00E5FF]/5 transition-colors">
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${s.day_type === 'weekday' ? 'bg-blue-50 text-blue-600' : s.day_type === 'weekend' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-500'}`}>
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${s.day_type === 'weekday' ? 'bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/20' : s.day_type === 'weekend' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                     {dayTypeLabels[s.day_type]}
                   </span>
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
                     <ShiftIcon size={12} />
                     {s.shift_start.slice(0, 5)} - {s.shift_end.slice(0, 5)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => handleEditSchedule(s)}
-                    className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all" title="Editar">
+                    className="p-1.5 text-[#00E5FF] bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 rounded-lg transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60" title="Editar">
                     <Pencil size={12} />
                   </button>
                   <button onClick={() => handleDeleteSchedule(s.id, s.name)}
-                    className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-all" title="Eliminar">
+                    className="p-1.5 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60" title="Eliminar">
                     <Trash2 size={12} />
                   </button>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div>
-                  <span className="text-lg font-black text-slate-900">${s.base_fee.toLocaleString('es-CO')}</span>
+                  <span className="text-lg font-black text-white">${s.base_fee.toLocaleString('es-CO')}</span>
                   <span className="text-[10px] text-slate-400 ml-1.5">base</span>
                 </div>
-                <div className="flex items-center gap-1 text-emerald-600 font-black text-sm">
+                <div className="flex items-center gap-1 text-emerald-400 font-black text-sm">
                   <ArrowUp size={14} />
                   {s.hourly_increase_percent}% <span className="text-[10px] text-slate-400 font-bold">/hora</span>
                 </div>
@@ -357,9 +471,9 @@ export default function TarifasPage() {
             </div>
           )
         })}
-        <div className="p-4 border-t border-gray-50">
+        <div className="p-4 border-t border-white/5">
           <button onClick={() => { setShowScheduleForm(true); setEditingScheduleId(null); setScheduleForm({ ...defaultScheduleForm, vehicle_type: vehicleType }) }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 text-slate-300 hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
             <Plus size={14} /> Agregar Horario
           </button>
         </div>

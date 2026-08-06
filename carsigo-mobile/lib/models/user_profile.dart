@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { passenger, driver, admin }
 
 class UserProfile {
@@ -20,13 +22,21 @@ class UserProfile {
   String get displayName => fullName ?? phone;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final createdAtRaw = json['created_at'];
+    final createdAt = createdAtRaw is DateTime
+        ? createdAtRaw
+        : createdAtRaw is Timestamp
+            ? createdAtRaw.toDate()
+            : DateTime.tryParse(createdAtRaw?.toString() ?? '') ??
+                DateTime.now();
+
     return UserProfile(
       id: json['id'],
       phone: json['phone'] ?? '',
       fullName: json['full_name'] ?? json['name'],
       role: _parseRole(json['role']),
       avatarUrl: json['avatar_url'],
-      createdAt: DateTime.parse(json['created_at']),
+      createdAt: createdAt,
     );
   }
 

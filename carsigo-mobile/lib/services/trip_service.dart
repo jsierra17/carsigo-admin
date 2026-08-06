@@ -1,127 +1,104 @@
 import 'dart:async';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/trip.dart';
 
 class TripService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> get _trips =>
+      _firestore.collection('trips');
 
   Future<List<Trip>> getPendingTrips() async {
-    final data = await _supabase
-        .from('trips')
-        .select()
-        .eq('status', 'pending')
-        .isFilter('driver_id', null)
-        .order('created_at', ascending: false)
-        .limit(20);
-    return (data as List).map((j) => Trip.fromJson(j)).toList();
+    final snap = await _trips
+        .where('status', isEqualTo: 'pending')
+        .where('driver_id', isNull: true)
+        .orderBy('created_at', descending: true)
+        .limit(20)
+        .get();
+    return snap.docs.map((d) => Trip.fromJson(d.data())).toList();
   }
 
   Future<Trip?> getActiveDriverTrip(String userId) async {
-    final data = await _supabase
-        .from('trips')
-        .select()
-        .eq('driver_id', userId)
-        .inFilter('status', ['accepted', 'inProgress'])
-        .maybeSingle();
-    if (data == null) return null;
-    return Trip.fromJson(data);
+    final snap = await _trips
+        .where('driver_id', isEqualTo: userId)
+        .where('status', whereIn: ['accepted', 'inProgress'])
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return Trip.fromJson(snap.docs.first.data());
   }
 
   Stream<List<Trip>> subscribeToPendingTrips() {
-    final controller = StreamController<List<Trip>>.broadcast();
-    _loadAndListen(controller);
-    return controller.stream;
-  }
-
-  void _loadAndListen(StreamController<List<Trip>> controller) async {
-    controller.add(await getPendingTrips());
-    _supabase
-        .channel('pending-trips')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          table: 'trips',
-          schema: 'public',
-          callback: (_) async {
-            if (!controller.isClosed) controller.add(await getPendingTrips());
-          },
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          table: 'trips',
-          schema: 'public',
-          callback: (_) async {
-            if (!controller.isClosed) controller.add(await getPendingTrips());
-          },
-        )
-        .subscribe();
+    return _trips
+        .where('status', isEqualTo: 'pending')
+        .where('driver_id', isNull: true)
+        .orderBy('created_at', descending: true)
+        .limit(20)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Trip.fromJson(d.data())).toList());
   }
 
   Stream<Trip> subscribeToTrip(String tripId) {
-    final controller = StreamController<Trip>.broadcast();
-    _supabase
-        .channel('trip-$tripId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          table: 'trips',
-          schema: 'public',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: tripId,
-          ),
-          callback: (change) {
-            if (!controller.isClosed) controller.add(Trip.fromJson(change.newRecord));
-          },
-        )
-        .subscribe();
-    return controller.stream;
+    return _trips
+        .doc(tripId)
+        .snapshots()
+        .where((doc) => doc.exists)
+        .map((doc) => Trip.fromJson(doc.data()!));
   }
 
   Future<void> acceptTrip(String tripId, String driverId) async {
-    await _supabase.from('trips').update({
+    await _trips.doc(tripId).update({
       'driver_id': driverId,
       'status': 'accepted',
-      'accepted_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', tripId);
+      'accepted_at': Timestamp.now(),
+    });
   }
 
   Future<void> rejectTrip(String tripId) async {
-    await _supabase.from('trips').update({
+    await _trips.doc(tripId).update({
       'status': 'pending',
       'driver_id': null,
-    }).eq('id', tripId);
+    });
   }
 
   Future<void> startTrip(String tripId) async {
-    await _supabase.from('trips').update({
+    await _trips.doc(tripId).update({
       'status': 'inProgress',
-      'started_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', tripId);
+      'started_at': Timestamp.now(),
+    });
   }
 
-  Future<void> completeTrip(String tripId, {double? fareAmount, double? commissionAmount}) async {
+  Future<void> completeTrip(
+    String tripId, {
+    double? fareAmount,
+    double? commissionAmount,
+  }) async {
     final updates = <String, dynamic>{
       'status': 'completed',
-      'completed_at': DateTime.now().toUtc().toIso8601String(),
+      'completed_at': Timestamp.now(),
     };
     if (fareAmount != null) updates['fare_amount'] = fareAmount;
-    if (commissionAmount != null) updates['commission_amount'] = commissionAmount;
-    await _supabase.from('trips').update(updates).eq('id', tripId);
+    if (commissionAmount != null) {
+      updates['commission_amount'] = commissionAmount;
+    }
+    await _trips.doc(tripId).update(updates);
   }
 
   Future<void> setDriverAvailability(String userId, bool available) async {
-    await _supabase.rpc('set_driver_availability', params: {'p_available': available});
+    await _firestore
+        .collection('driver_profiles')
+        .doc(userId)
+        .set({'is_available': available}, SetOptions(merge: true));
   }
 
   Future<Trip?> getActivePassengerTrip(String userId) async {
-    final data = await _supabase
-        .from('trips')
-        .select()
-        .eq('passenger_id', userId)
-        .inFilter('status', ['pending', 'accepted', 'inProgress'])
-        .maybeSingle();
-    if (data == null) return null;
-    return Trip.fromJson(data);
+    final snap = await _trips
+        .where('passenger_id', isEqualTo: userId)
+        .where('status', whereIn: ['pending', 'accepted', 'inProgress'])
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return Trip.fromJson(snap.docs.first.data());
   }
 
   Future<Trip> createTrip({
@@ -130,27 +107,34 @@ class TripService {
     String? dropoffAddress,
     double pickupLat = 0,
     double pickupLng = 0,
+    double? dropoffLat,
+    double? dropoffLng,
     double? distanceKm,
     double? durationMin,
+    String? vehicleType,
   }) async {
-    final response = await _supabase
-        .from('trips')
-        .insert({
-          'passenger_id': passengerId,
-          'status': 'pending',
-          'pickup_address': pickupAddress,
-          'dropoff_address': dropoffAddress,
-          'pickup_lat': pickupLat,
-          'pickup_lng': pickupLng,
-          'distance_km': distanceKm ?? 0,
-          'duration_min': durationMin ?? 0,
-        })
-        .select()
-        .single();
-    return Trip.fromJson(response);
+    final docRef = _trips.doc();
+    final data = <String, dynamic>{
+      'id': docRef.id,
+      'passenger_id': passengerId,
+      'status': 'pending',
+      'pickup_address': pickupAddress,
+      'dropoff_address': dropoffAddress,
+      'pickup_lat': pickupLat,
+      'pickup_lng': pickupLng,
+      'dropoff_lat': dropoffLat,
+      'dropoff_lng': dropoffLng,
+      'pickup_location': GeoPoint(pickupLat, pickupLng),
+      'distance_km': distanceKm ?? 0,
+      'duration_min': durationMin ?? 0,
+      'vehicle_type': vehicleType ?? 'moto',
+      'created_at': Timestamp.now(),
+    };
+    await docRef.set(data);
+    return Trip.fromJson({...data, 'id': docRef.id});
   }
 
   Future<void> cancelTrip(String tripId) async {
-    await _supabase.from('trips').update({ 'status': 'cancelled' }).eq('id', tripId);
+    await _trips.doc(tripId).update({'status': 'cancelled'});
   }
 }

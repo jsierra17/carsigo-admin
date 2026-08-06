@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ── Helpers ─────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (request.auth.token.role in ['admin', 'superadmin']);
+    }
+
+    // ── users ───────────────────────────────────────────────
+    // El pasajero crea/actualiza su propio perfil (sin cambiar rol).
+    // Lectura: cualquier usuario autenticado (el panel lista usuarios vía server actions).
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if (isSignedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── driver_profiles (docId = user_id) ───────────────────
+    // El conductor solo puede tocar su flag is_available.
+    match /driver_profiles/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == userId && request.resource.data.keys().hasOnly(['is_available']));
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_available']));
+      allow delete: if isAdmin();
+    }
+
+    // ── driver_applications ─────────────────────────────────
+    // El postulante crea y lee la suya (pendiente); las decisiones las toma
+    // el admin vía server actions (Admin SDK, sin pasar por estas reglas).
+    match /driver_applications/{id} {
+      allow read: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // ── settlements ─────────────────────────────────────────
+    match /settlements/{id} {
+      allow read: if isSignedIn() && (resource.data.driver_id == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ── wallets ─────────────────────────────────────────────
+    match /wallets/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ── Datos de referencia (lectura para el pricing móvil) ─
+    match /geofences/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /rate_cards/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /rate_schedules/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /dynamic_pricing_rules/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── trips ───────────────────────────────────────────────
+    // Feed de conductores: trips pendientes sin asignar son legibles.
+    // Aceptación: un conductor puede asignarse un trip pendiente.
+    match /trips/{tripId} {
+      allow read: if isSignedIn() && (
+        resource.data.passenger_id == request.auth.uid ||
+        resource.data.driver_id == request.auth.uid ||
+        (resource.data.status == 'pending' && resource.data.driver_id == null) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.passenger_id == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.passenger_id == request.auth.uid ||
+        resource.data.driver_id == request.auth.uid ||
+        (resource.data.status == 'pending' && request.resource.data.driver_id == request.auth.uid) ||
+        // Declinar (no-op sobre un trip pendiente sin asignar): solo resetear driver_id/status
+        (resource.data.status == 'pending' && resource.data.driver_id == null && request.resource.data.driver_id == null) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── trip_fare_breakdown ─────────────────────────────────
+    match /trip_fare_breakdown/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

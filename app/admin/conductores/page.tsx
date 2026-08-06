@@ -84,7 +84,7 @@ export default function ConductoresPage() {
       case 'suspended':
         return <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-black uppercase tracking-widest"><ShieldAlert size={12} /> Suspendido</div>;
       default:
-        return <div className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-black">N/A</div>;
+        return <div className="px-3 py-1 rounded-full bg-white/10 text-slate-400 text-[10px] font-black">N/A</div>;
     }
   };
 
@@ -95,21 +95,21 @@ export default function ConductoresPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 shadow-sm">
+            <div className="p-2 bg-[#00E5FF]/10 text-[#00E5FF] rounded-xl border border-[#00E5FF]/20 shadow-sm">
               <ShieldAlert size={20} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Auditoría de Flota</h1>
+            <h1 className="text-3xl font-black text-white tracking-tighter">Auditoría de Flota</h1>
           </div>
           <p className="text-slate-500 font-medium">Control total sobre conductores, aprobaciones y cumplimiento de normas.</p>
         </div>
         
-        <div className="flex bg-white border border-gray-200 rounded-2xl p-1 shadow-sm">
+        <div className="flex bg-white/5 border border-white/10 rounded-2xl p-1 shadow-sm">
           {['all', 'pending', 'active', 'suspended'].map((tab) => (
             <button
               key={tab}
               onClick={() => setFiltroEstado(tab)}
               className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                filtroEstado === tab ? 'bg-[#00E5FF] text-[#131313] shadow-md scale-105' : 'text-slate-500 hover:text-slate-900'
+                filtroEstado === tab ? 'bg-[#00E5FF] text-[#131313] shadow-md scale-105' : 'text-slate-500 hover:text-white'
               }`}
             >
               {tab === 'all' ? 'Todos' : tab === 'pending' ? 'Pendientes' : tab === 'active' ? 'Activos' : 'Suspendidos'}
@@ -119,15 +119,15 @@ export default function ConductoresPage() {
       </div>
 
       {/* Buscador Avanzado Light */}
-      <div className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm relative group">
-        <div className="absolute inset-y-0 left-8 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#00C0D4] transition-colors">
+      <div className="bg-[#141416] border border-white/5 p-4 rounded-3xl shadow-sm relative group">
+        <div className="absolute inset-y-0 left-8 flex items-center pointer-events-none text-slate-500 group-focus-within:text-[#00E5FF] transition-colors">
           <Search size={20} />
         </div>
         <input
           type="text"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full pl-16 pr-8 py-5 bg-slate-50/50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-[#00E5FF]/10 focus:border-[#00E5FF]/30 outline-none font-bold text-slate-800 transition-all placeholder:text-slate-400"
+          className="w-full pl-16 pr-8 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#00E5FF]/10 focus:border-[#00E5FF]/30 outline-none font-bold text-white transition-all placeholder:text-slate-500"
           placeholder="Busca por Nombre, Teléfono, Vehículo o ID de Conductor..."
         />
       </div>
@@ -136,13 +136,13 @@ export default function ConductoresPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-64 bg-slate-100 rounded-3xl animate-pulse"></div>
+            <div key={i} className="h-64 bg-white/10 rounded-3xl animate-pulse"></div>
           ))
         ) : conductores.length === 0 ? (
-          <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border border-dashed border-gray-200">
-            <Car size={64} className="mx-auto mb-6 text-slate-100" />
-            <h3 className="text-xl font-black text-slate-400">No se encontraron resultados</h3>
-            <p className="text-slate-300 mt-2 font-medium">Ajusta los filtros o intenta con otro término de búsqueda.</p>
+          <div className="col-span-full py-32 text-center bg-[#141416] rounded-3xl border border-dashed border-white/10">
+            <Car size={64} className="mx-auto mb-6 text-slate-600 opacity-20" />
+            <h3 className="text-xl font-black text-slate-500">No se encontraron resultados</h3>
+            <p className="text-slate-500 mt-2 font-medium">Ajusta los filtros o intenta con otro término de búsqueda.</p>
           </div>
         ) : (
           conductores.map((driver) => {
@@ -150,38 +150,38 @@ export default function ConductoresPage() {
             const status = perfil?.status || 'pending';
 
             return (
-              <div key={driver.id} className="group bg-white border border-gray-100 rounded-[2.5rem] hover:shadow-xl hover:border-blue-100 transition-all duration-500 relative overflow-hidden flex flex-col h-full">
+              <div key={driver.id} className="group bg-[#141416] border border-white/5 rounded-[2.5rem] hover:shadow-xl hover:border-[#00E5FF]/25 transition-all duration-500 relative overflow-hidden flex flex-col h-full">
                 
                 <div className="p-8 flex-1">
                   <div className="flex justify-between items-start mb-6">
-                    <div className="w-16 h-16 rounded-[1.5rem] bg-slate-50 flex items-center justify-center text-[#00606b] font-black text-2xl border border-gray-100 group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 flex items-center justify-center text-[#00E5FF] font-black text-2xl border border-white/10 group-hover:scale-110 transition-transform">
                       {driver.name?.charAt(0) || 'C'}
                     </div>
                     {getStatusDisplay(status)}
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-blue-600 transition-colors uppercase">{driver.name}</h3>
+                    <h3 className="text-xl font-black text-white tracking-tight leading-tight group-hover:text-[#00E5FF] transition-colors uppercase">{driver.name}</h3>
                     <p className="text-[10px] text-slate-400 font-black tracking-[0.2em] mt-1">ID: {driver.id.substring(0, 12)}...</p>
                   </div>
 
                   <div className="mt-8 space-y-3">
-                    <div className="flex items-center gap-3 text-sm text-slate-600 font-bold bg-slate-50/50 p-3 rounded-2xl border border-gray-50">
-                      <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg"><Phone size={14} /></div>
+                    <div className="flex items-center gap-3 text-sm text-slate-300 font-bold bg-white/5 p-3 rounded-2xl border border-white/5">
+                      <div className="p-1.5 bg-[#00E5FF]/10 text-[#00E5FF] rounded-lg"><Phone size={14} /></div>
                       {driver.phone}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-600 font-bold bg-slate-50/50 p-3 rounded-2xl border border-gray-50">
-                      <div className="p-1.5 bg-cyan-100 text-cyan-600 rounded-lg"><Car size={14} /></div>
+                    <div className="flex items-center gap-3 text-sm text-slate-300 font-bold bg-white/5 p-3 rounded-2xl border border-white/5">
+                      <div className="p-1.5 bg-[#00E5FF]/10 text-[#00E5FF] rounded-lg"><Car size={14} /></div>
                       {perfil?.plate || 'SIN PLACA'} • {perfil?.vehicle_type || 'ESTÁNDAR'}
                     </div>
                   </div>
                 </div>
 
                 {/* Footer de Tarjeta Light */}
-                <div className="p-6 bg-slate-50/50 border-t border-gray-100 flex items-center justify-between mt-auto">
+                <div className="p-6 bg-white/5 border-t border-white/5 flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className={`w-1 h-1 rounded-full ${i < 4 ? 'bg-[#00E5FF]' : 'bg-slate-200'}`}></div>
+                      <div key={i} className={`w-1 h-1 rounded-full ${i < 4 ? 'bg-[#00E5FF]' : 'bg-white/10'}`}></div>
                     ))}
                     <span className="text-[9px] font-black text-slate-400 ml-2 uppercase">Score: 4.8</span>
                   </div>
@@ -189,7 +189,7 @@ export default function ConductoresPage() {
                   <div className="relative">
                     <button 
                       onClick={() => setMenuAbierto(menuAbierto === driver.id ? null : driver.id)}
-                      className="p-3 hover:bg-white text-slate-400 hover:text-slate-900 rounded-xl transition-all border border-transparent hover:border-gray-200"
+                      className="p-3 hover:bg-white/5 text-slate-400 hover:text-white rounded-xl transition-all border border-transparent hover:border-white/10"
                     >
                       <MoreVertical size={20} />
                     </button>
@@ -197,16 +197,16 @@ export default function ConductoresPage() {
                     {menuAbierto === driver.id && (
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setMenuAbierto(null)}></div>
-                        <div className="absolute right-0 bottom-full mb-3 w-56 bg-white border border-gray-200 rounded-2xl shadow-2xl z-40 py-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                          <button className="w-full text-left px-4 py-3 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors">
-                            <Eye size={16} className="text-blue-500" /> Ver Documentación
+                        <div className="absolute right-0 bottom-full mb-3 w-56 bg-[#141416] border border-white/10 rounded-2xl shadow-2xl z-40 py-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                          <button className="w-full text-left px-4 py-3 text-xs text-slate-300 hover:bg-white/5 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors">
+                            <Eye size={16} className="text-[#00E5FF]" /> Ver Documentación
                           </button>
                           
                           {status !== 'active' && (
                             <button 
                               onClick={() => handleAction(driver.id, 'approve')}
                               disabled={isPending}
-                              className="w-full text-left px-4 py-3 text-xs text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors"
+                              className="w-full text-left px-4 py-3 text-xs text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors"
                             >
                               <UserCheck size={16} /> Aprobar Cuenta
                             </button>
@@ -216,14 +216,14 @@ export default function ConductoresPage() {
                             <button 
                               onClick={() => handleAction(driver.id, 'suspend')}
                               disabled={isPending}
-                              className="w-full text-left px-4 py-3 text-xs text-red-500 hover:bg-red-50 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors"
+                              className="w-full text-left px-4 py-3 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-3 font-bold uppercase tracking-widest transition-colors"
                             >
                               <UserX size={16} /> Suspender Conductor
                             </button>
                           )}
                           
-                          <div className="border-t border-gray-100 mt-2 pt-2">
-                             <button className="w-full text-left px-4 py-3 text-[10px] text-slate-400 hover:bg-slate-50 flex items-center gap-3 font-black uppercase tracking-[0.2em]">
+                          <div className="border-t border-white/5 mt-2 pt-2">
+                             <button className="w-full text-left px-4 py-3 text-[10px] text-slate-500 hover:bg-white/5 flex items-center gap-3 font-black uppercase tracking-[0.2em]">
                               <AlertTriangle size={14} /> Reportar Incidente
                             </button>
                           </div>

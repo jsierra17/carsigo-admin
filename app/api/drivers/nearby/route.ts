@@ -22,7 +22,12 @@ export async function GET(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const drivers = (activeDrivers || []).map(d => ({
+    const drivers = (activeDrivers || []).map((d: {
+      user_id: string
+      vehicle_type?: string
+      plate?: string
+      users?: { name?: string; phone?: string } | null
+    }) => ({
       user_id: d.user_id,
       name: (d.users as any)?.name,
       phone: (d.users as any)?.phone,

@@ -13,7 +13,6 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   flutter_dotenv: ^5.2.1
-  supabase_flutter: ^2.5.0
   flutter_riverpod: ^2.5.1
   google_fonts: ^6.2.1
   google_sign_in: ^6.2.1
@@ -22,6 +21,10 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^13.0.2
   http: ^1.2.2
+  firebase_core: ^4.13.0
+  firebase_auth: ^6.5.7
+  cloud_firestore: ^6.8.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:

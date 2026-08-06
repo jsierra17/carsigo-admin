@@ -4,9 +4,31 @@ import { createAdminClient } from '@/lib/supabase/service';
 import { revalidatePath } from 'next/cache';
 import { checkIsAdmin } from '@/lib/auth';
 
+function normalizeName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export async function createGeofence(payload: { municipality_name: string, boundaries: any, is_active: boolean, base_multiplier: number }) {
   if (!(await checkIsAdmin())) throw new Error('Acceso Denegado');
   const supabase = createAdminClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('geofences')
+    .select('municipality_name');
+  if (fetchError) throw new Error(fetchError.message);
+
+  const normalized = normalizeName(payload.municipality_name);
+  const duplicated = (existing || []).find(
+    (z: any) => normalizeName(z?.municipality_name || '') === normalized
+  );
+  if (duplicated) {
+    throw new Error(`La zona "${payload.municipality_name.trim()}" ya está habilitada. No se permiten zonas duplicadas.`);
+  }
+
   const { error } = await supabase.from('geofences').insert([payload]);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/zonas');

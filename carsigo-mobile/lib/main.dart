@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:carsigo_mobile/services/supabase_service.dart';
 import 'package:carsigo_mobile/services/preferences_service.dart';
 import 'package:carsigo_mobile/screens/onboarding/onboarding_screen.dart';
 import 'package:carsigo_mobile/screens/auth/login_screen.dart';
+import 'package:carsigo_mobile/screens/auth/role_selection_screen.dart';
 import 'package:carsigo_mobile/screens/driver/driver_home_screen.dart';
 import 'package:carsigo_mobile/screens/passenger/passenger_home_screen.dart';
 import 'package:carsigo_mobile/providers/auth_provider.dart';
@@ -15,13 +17,9 @@ void main() async {
 
   await dotenv.load(fileName: ".env");
 
-  await SupabaseService.initialize();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(
-    const ProviderScope(
-      child: CarSiGoApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: CarSiGoApp()));
 }
 
 class CarSiGoApp extends StatelessWidget {
@@ -51,16 +49,19 @@ class AuthGate extends ConsumerWidget {
 
     return authState.when(
       data: (state) {
-        final user = state.session?.user;
-
+        final user = state;
         if (user == null) {
           return FutureBuilder<bool>(
             future: PreferencesService.isOnboardingCompleted(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
-                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               }
-              return snapshot.data! ? const LoginScreen() : const OnboardingScreen();
+              return snapshot.data!
+                  ? const LoginScreen()
+                  : const OnboardingScreen();
             },
           );
         }
@@ -70,25 +71,7 @@ class AuthGate extends ConsumerWidget {
         return userProfile.when(
           data: (profile) {
             if (profile == null) {
-              return Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: CircularProgressIndicator(),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Configurando tu cuenta...',
-                        style: const TextStyle(fontFamily: 'Poppins', fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return const RoleSelectionScreen();
             }
 
             if (profile.role == UserRole.driver) {
@@ -96,20 +79,17 @@ class AuthGate extends ConsumerWidget {
             }
             return const PassengerHomeScreen();
           },
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
+          loading: () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
           error: (err, stack) => Scaffold(
             body: Center(child: Text('Error al cargar perfil: $err')),
           ),
         );
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, stack) => Scaffold(
-        body: Center(child: Text('Error de autenticacion: $err')),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) =>
+          Scaffold(body: Center(child: Text('Error de autenticacion: $err'))),
     );
   }
 }

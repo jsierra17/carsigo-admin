@@ -1,73 +1,70 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../services/auth_service.dart';
 import '../models/user_profile.dart';
 
-final authServiceProvider = Provider((ref) => AuthService());
+// Servicio de autenticación
 
-final authStateProvider = StreamProvider<AuthState>((ref) {
-  return ref.watch(authServiceProvider).authStateChanges;
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService();
 });
+
+// Estado Firebase Auth
+
+final authStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
+// Usuario actual
 
 final currentUserProvider = Provider<User?>((ref) {
-  final authState = ref.watch(authStateProvider).value;
-  return authState?.session?.user;
+  return ref.watch(authStateProvider).value;
 });
 
+// Perfil del usuario guardado en Firestore
+
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final userId = ref.watch(currentUserProvider)?.id;
-  if (userId == null) return null;
-  return await ref.watch(authServiceProvider).getUserProfile(userId);
+  final user = ref.watch(currentUserProvider);
+
+  if (user == null) {
+    return null;
+  }
+
+  final authService = ref.watch(authServiceProvider);
+
+  return await authService.getUserProfile(user.uid);
 });
 
 class AuthController extends StateNotifier<AsyncValue<void>> {
   final AuthService _authService;
+
   final Ref _ref;
 
   AuthController(this._authService, this._ref) : super(const AsyncData(null));
 
-  Future<void> _syncProfile() async {
-    final user = _authService.currentUser;
-    if (user == null) return;
-
-    final existing = await _authService.getUserProfile(user.id);
-
-    if (existing != null) {
-      final updated = existing.copyWith(
-        fullName: user.userMetadata?['full_name'] ?? existing.fullName,
-        avatarUrl: user.userMetadata?['avatar_url'] ?? existing.avatarUrl,
-      );
-      await _authService.createProfile(updated);
-    } else {
-      final newProfile = UserProfile(
-        id: user.id,
-        phone: user.phone ?? '',
-        fullName:
-            user.userMetadata?['full_name'] ??
-            user.email?.split('@').first ??
-            '',
-        role: UserRole.passenger,
-        avatarUrl: user.userMetadata?['avatar_url'],
-        createdAt: DateTime.now(),
-      );
-      await _authService.createProfile(newProfile);
-    }
-  }
+  // Login Google Firebase
 
   Future<void> signInWithGoogle() async {
     state = const AsyncLoading();
+
     state = await AsyncValue.guard(() async {
       await _authService.signInWithGoogle();
-      await _syncProfile();
     });
+
     _ref.invalidate(userProfileProvider);
   }
 
+  // Cerrar sesión
+
   Future<void> signOut() async {
     state = const AsyncLoading();
+
     state = await AsyncValue.guard(() async {
       await _authService.signOut();
     });
+
+    _ref.invalidate(userProfileProvider);
   }
 
   AsyncValue<void> get error => state;

@@ -92,24 +92,32 @@ class RoleSelectionScreen extends ConsumerWidget {
     final user = authService.currentUser;
 
     if (user != null) {
-      final existing = await authService.getUserProfile(user.id);
+      final existing = await authService.getUserProfile(user.uid);
+
+      if (existing == null && role == UserRole.driver) {
+        // El conductor solicita registro: crea perfil + solicitud pendiente
+        // para que el panel la revise y otorgue el rol.
+        await authService.createDriverApplication(
+          userId: user.uid,
+          fullName: user.displayName ?? user.email ?? '',
+        );
+      }
+
       final profile =
           existing?.copyWith(role: role) ??
           UserProfile(
-            id: user.id,
-            phone: user.phone ?? '',
-            fullName:
-                user.userMetadata?['full_name'] ??
-                user.email?.split('@').first ??
-                '',
+            id: user.uid,
+            phone: user.phoneNumber ?? '',
+            fullName: user.displayName ?? user.email?.split('@').first ?? '',
             role: role,
-            avatarUrl: user.userMetadata?['avatar_url'],
+            avatarUrl: user.photoURL,
             createdAt: DateTime.now(),
           );
       await authService.createProfile(profile);
       ref.invalidate(userProfileProvider);
-      if (context.mounted)
+      if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     }
   }
 }

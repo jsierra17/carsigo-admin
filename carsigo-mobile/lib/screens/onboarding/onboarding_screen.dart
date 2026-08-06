@@ -111,10 +111,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           subtitle: 'Tu aplicación de movilidad\nen El Carmen de Bolívar',
           description:
               'Viajes rápidos, seguros y al mejor precio\nen moto o carro.',
-          child: Padding(
-            padding: const EdgeInsets.only(top: 40),
-            child: Image.asset('assets/logo.png', width: 120, height: 120),
-          ),
+          child: _imagePlaceholder('assets/sub-logo.png', Icons.home),
         );
       case 1:
         return _OnboardingPage(
@@ -144,7 +141,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         asset,
         width: 280,
         height: 220,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         errorBuilder: (c, e, s) => Container(
           width: 280,
           height: 220,

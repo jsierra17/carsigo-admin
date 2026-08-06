@@ -56,8 +56,14 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   PricingBreakdown? _estimate;
 
   ZoneInfo? _currentZone;
+  List<ZoneInfo> _allowedZones = [];
   bool _checkingZone = true;
   bool _inActiveZone = false;
+
+  List<LatLng>? _routePoints;
+  double _routeKm = 0;
+  double _routeMin = 0;
+  bool _routing = false;
 
   List<MapSuggestion> _pickupSuggestions = [];
   List<MapSuggestion> _destSuggestions = [];
@@ -123,31 +129,41 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
         distanceFilter: 10,
       ),
     ).listen((pos) {
-      if (mounted) {
-        setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+      if (!mounted) return;
+      setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+      // Re-evalúa cobertura si aún no hay zona, para no quedar congelado
+      // en "Servicio no disponible" por un fix inicial impreciso.
+      if (_currentZone == null) {
+        _checkZone(pos.latitude, pos.longitude);
       }
     });
   }
 
   Future<void> _checkZone(double lat, double lng) async {
     try {
-      final zone = await _zoneService.findActiveZone(lat, lng);
+      final zones = await _zoneService.findActiveAndAdjacentZones(lat, lng);
       if (mounted) {
         setState(() {
-          _currentZone = zone;
-          _inActiveZone = zone != null;
+          _allowedZones = zones;
+          _currentZone = zones.isNotEmpty ? zones.first : null;
+          _inActiveZone = _currentZone != null;
           _checkingZone = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() { _currentZone = null; _inActiveZone = false; _checkingZone = false; });
+      if (mounted) {
+        setState(() {
+          _currentZone = null; _allowedZones = [];
+          _inActiveZone = false; _checkingZone = false;
+        });
+      }
     }
   }
 
   Future<void> _loadActiveTrip() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    final trip = await _tripService.getActivePassengerTrip(user.id);
+    final trip = await _tripService.getActivePassengerTrip(user.uid);
     if (mounted) setState(() => _activeTrip = trip);
     if (trip != null) _subscribeToTrip(trip.id);
   }
@@ -165,7 +181,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       if (_pickupCtrl.text.length < 3) return;
       final suggestions = await LocationService.searchAddress(
         _pickupCtrl.text,
-        zone: _currentZone,
+        zones: _allowedZones,
         userLat: _currentPos?.latitude,
         userLng: _currentPos?.longitude,
       );
@@ -179,7 +195,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       if (_destCtrl.text.length < 3) return;
       final suggestions = await LocationService.searchAddress(
         _destCtrl.text,
-        zone: _currentZone,
+        zones: _allowedZones,
         userLat: _currentPos?.latitude,
         userLng: _currentPos?.longitude,
       );
@@ -199,6 +215,17 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }
 
   void _selectDest(MapSuggestion s) {
+    if (_allowedZones.isNotEmpty && !_allowedZones.any((z) => z.contains(s.lat, s.lng))) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El destino está fuera de la zona de servicio'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _destPos = LatLng(s.lat, s.lng);
       _destAddress = s.placeName;
@@ -226,19 +253,34 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   Future<void> _recalculateEstimate() async {
     if (_pickupPos == null || _destPos == null) {
-      setState(() => _estimate = null);
+      setState(() { _estimate = null; _routePoints = null; _routeKm = 0; _routeMin = 0; _routing = false; });
       return;
     }
 
-    final distance = _calculateDistance(_pickupPos!, _destPos!);
+    setState(() => _routing = true);
+    final route = await LocationService.getRoute(
+      fromLat: _pickupPos!.latitude,
+      fromLng: _pickupPos!.longitude,
+      toLat: _destPos!.latitude,
+      toLng: _destPos!.longitude,
+    );
+    final distance = route.distanceKm;
     try {
       final est = await _engine.calculateFare(
         vehicleType: _vehicleType,
         distanceKm: distance,
       );
-      if (mounted) setState(() => _estimate = est);
+      if (mounted) {
+        setState(() {
+          _estimate = est;
+          _routePoints = route.points;
+          _routeKm = route.distanceKm;
+          _routeMin = route.durationMin;
+          _routing = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _estimate = null);
+      if (mounted) setState(() { _estimate = null; _routing = false; });
     }
   }
 
@@ -257,7 +299,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   double _dSin(double x) => _dApprox(x, (v) => v - v * v * v / 6 + v * v * v * v * v / 120);
   double _dCos(double x) => _dApprox(x, (v) => 1 - v * v / 2 + v * v * v * v / 24);
   double _dAsin(double x) => x <= -1 ? -3.141592653589793 / 2 : x >= 1 ? 3.141592653589793 / 2 : _dApprox(x, (v) => v + v * v * v / 6 + v * v * v * v * v * 3 / 40);
-  double _dSqrt(double x) => x <= 0 ? 0 : _dApprox(x, (v) { double s = v / 2; for (int i = 0; i < 10; i++) s = (s + v / s) / 2; return s; });
+  double _dSqrt(double x) => x <= 0 ? 0 : _dApprox(x, (v) {
+        double s = v / 2;
+        for (int i = 0; i < 10; i++) {
+          s = (s + v / s) / 2;
+        }
+        return s;
+      });
   double _dApprox(double x, double Function(double) fn) => fn(x);
 
   Future<void> _requestTrip() async {
@@ -266,14 +314,18 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
     setState(() => _loading = true);
     try {
-      final distance = _destPos != null ? _calculateDistance(_pickupPos!, _destPos!) : 0.0;
+      final distance = _routeKm > 0 ? _routeKm
+          : (_destPos != null ? _calculateDistance(_pickupPos!, _destPos!) : 0.0);
       final trip = await _tripService.createTrip(
-        passengerId: user.id,
+        passengerId: user.uid,
         pickupAddress: _pickupAddress!,
         dropoffAddress: _destAddress,
         pickupLat: _pickupPos!.latitude,
         pickupLng: _pickupPos!.longitude,
+        dropoffLat: _destPos?.latitude,
+        dropoffLng: _destPos?.longitude,
         distanceKm: distance,
+        vehicleType: _vehicleType == VehicleType.car ? 'car' : 'moto',
       );
       setState(() { _activeTrip = trip; _loading = false; });
       _subscribeToTrip(trip.id);
@@ -378,12 +430,36 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     }
 
     final lines = <Polyline>[];
-    if (_pickupPos != null && _destPos != null) {
+    if ((_routePoints?.length ?? 0) >= 2) {
+      lines.add(Polyline(
+        points: _routePoints!,
+        color: _cyan,
+        strokeWidth: 4,
+      ));
+    } else if (_pickupPos != null && _destPos != null) {
       lines.add(Polyline(
         points: [_pickupPos!, _destPos!],
         color: _cyan.withAlpha(128),
         strokeWidth: 2,
       ));
+    } else if (_pickupPos != null) {
+      lines.add(Polyline(
+        points: [_pickupPos!],
+        color: _green.withAlpha(160),
+        strokeWidth: 2,
+      ));
+    }
+
+    final polygons = <Polygon>[];
+    for (final zone in _allowedZones) {
+      for (final polygon in zone.polygons) {
+        polygons.add(Polygon(
+          points: polygon.map((pt) => LatLng(pt[0], pt[1])).toList(),
+          color: _cyan.withAlpha(16),
+          borderColor: _cyan.withAlpha(90),
+          borderStrokeWidth: 1,
+        ));
+      }
     }
 
     return FlutterMap(
@@ -391,12 +467,16 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       options: MapOptions(
         initialCenter: _currentPos ?? const LatLng(10.0, -75.0),
         initialZoom: 15,
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+        ),
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
           userAgentPackageName: 'com.carsigo.app',
         ),
+        PolygonLayer(polygons: polygons),
         PolylineLayer(polylines: lines),
         MarkerLayer(markers: markers),
       ],
@@ -416,6 +496,21 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_currentZone != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(children: [
+                  Icon(Icons.radar, size: 16, color: _cyan),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Estás en ${_currentZone!.municipalityName}',
+                      style: const TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+              ),
             _buildSuggestionField(
               controller: _pickupCtrl,
               focusNode: _pickupFocus,
@@ -551,7 +646,10 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           Text('\$${e.finalFare.toStringAsFixed(0)}', style: const TextStyle(color: _cyan, fontSize: 22, fontWeight: FontWeight.w900)),
         ]),
         const SizedBox(height: 6),
-        Text('${e.distanceKm.toStringAsFixed(1)} km • ${e.distanceKm > e.includedKm ? '${(e.distanceKm - e.includedKm).toStringAsFixed(1)} km extra' : '2 km incluidos'}',
+        Text(
+          _routing
+              ? 'Calculando ruta…'
+              : '${_routeKm.toStringAsFixed(1)} km • ${_routeMin.round()} min${e.distanceKm > e.includedKm ? ' • ${(e.distanceKm - e.includedKm).toStringAsFixed(1)} km extra' : ''}',
           style: TextStyle(color: _textMuted, fontSize: 11)),
         if (e.dynamicRuleName != null)
           Padding(
@@ -582,7 +680,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
             userAgentPackageName: 'com.carsigo.app',
           ),
           MarkerLayer(markers: markers),

@@ -1,4 +1,4 @@
-import '../services/supabase_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum VehicleType { moto, car }
 enum DayType { weekday, weekend, special }
@@ -83,7 +83,7 @@ String _currentTimeStr(DateTime dt) =>
     '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 
 class PricingEngine {
-  final _supabase = SupabaseService.client;
+  final _firestore = FirebaseFirestore.instance;
 
   Future<PricingBreakdown> calculateFare({
     required VehicleType vehicleType,
@@ -101,14 +101,14 @@ class PricingEngine {
             ? 'weekend'
             : 'special';
 
-    final schedulesRes = await _supabase
-        .from('rate_schedules')
-        .select('*')
-        .eq('vehicle_type', vehicleStr)
-        .eq('day_type', dayStr)
-        .eq('is_active', true);
+    final schedulesSnap = await _firestore
+        .collection('rate_schedules')
+        .where('vehicle_type', isEqualTo: vehicleStr)
+        .where('day_type', isEqualTo: dayStr)
+        .where('is_active', isEqualTo: true)
+        .get();
 
-    final schedules = schedulesRes as List? ?? [];
+    final schedules = schedulesSnap.docs.map((d) => d.data()).toList();
 
     Map<String, dynamic>? schedule;
     for (final s in schedules) {
@@ -128,14 +128,14 @@ class PricingEngine {
     }
     schedule ??= schedules.isNotEmpty ? schedules[0] : null;
 
-    final cardsRes = await _supabase
-        .from('rate_cards')
-        .select('*')
-        .eq('vehicle_type', vehicleStr)
-        .eq('is_active', true)
-        .limit(1);
+    final cardsSnap = await _firestore
+        .collection('rate_cards')
+        .where('vehicle_type', isEqualTo: vehicleStr)
+        .where('is_active', isEqualTo: true)
+        .limit(1)
+        .get();
 
-    final cards = cardsRes as List? ?? [];
+    final cards = cardsSnap.docs.map((d) => d.data()).toList();
     final card = cards.isNotEmpty ? cards[0] : null;
 
     final hoursSince = schedule != null
@@ -156,15 +156,18 @@ class PricingEngine {
 
     double subtotal = currentBaseFee + extraKmCharge;
 
-    final rulesRes = await _supabase
-        .from('dynamic_pricing_rules')
-        .select('*')
-        .eq('is_active', true)
-        .or('vehicle_type.eq.$vehicleStr,vehicle_type.is.null')
-        .gte('priority', 0)
-        .order('priority', ascending: false);
+    final rulesSnap = await _firestore
+        .collection('dynamic_pricing_rules')
+        .where('is_active', isEqualTo: true)
+        .orderBy('priority', descending: true)
+        .get();
 
-    final rules = rulesRes as List? ?? [];
+    final rules = rulesSnap.docs
+        .map((d) => d.data())
+        .where((r) =>
+            r['vehicle_type'] == null ||
+            r['vehicle_type'] == vehicleStr)
+        .toList();
 
     double dynamicMultiplier = 1.0;
     String? dynamicRuleName;

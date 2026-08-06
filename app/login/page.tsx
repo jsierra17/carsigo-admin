@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { login, resetPassword } from './actions';
+import { resetPassword } from './actions';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, ArrowRight, ArrowLeft, CheckCircle, Shield } from 'lucide-react';
 import Image from 'next/image';
 
@@ -11,6 +13,7 @@ export default function LoginAdmin() {
   const [modoRecuperar, setModoRecuperar] = useState(false);
   const [emailRecuperar, setEmailRecuperar] = useState('');
   const [recuperacionEnviada, setRecuperacionEnviada] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -18,8 +21,12 @@ export default function LoginAdmin() {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await login(formData);
-        if (result?.error) setError(result.error);
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) setError(error.message);
+        else router.push('/admin');
       } catch (err: any) {
         setError('Error inesperado al intentar iniciar sesion.');
       }
@@ -89,7 +96,7 @@ export default function LoginAdmin() {
           <div className="mt-10 w-full space-y-4">
             {[
               { icon: Shield, text: 'Acceso exclusivo para administradores' },
-              { icon: Shield, text: 'Conexion segura con Supabase Auth' },
+              { icon: Shield, text: 'Conexion segura con Firebase Auth' },
               { icon: Shield, text: 'Monitoreo en tiempo real 24/7' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3 text-slate-500 text-xs">

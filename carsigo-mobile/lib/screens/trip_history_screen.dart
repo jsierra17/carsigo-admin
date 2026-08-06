@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../models/trip.dart';
 
@@ -19,7 +19,7 @@ class TripHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
-  final _supabase = Supabase.instance.client;
+  final _firestore = FirebaseFirestore.instance;
   List<Trip> _trips = [];
   bool _loading = true;
 
@@ -34,16 +34,33 @@ class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
     if (user == null) { if (mounted) setState(() => _loading = false); return; }
 
     try {
-      final data = await _supabase
-          .from('trips')
-          .select()
-          .or('passenger_id.eq.${user.id},driver_id.eq.${user.id}')
-          .order('created_at', ascending: false)
-          .limit(50);
+      final asPassenger = await _firestore
+          .collection('trips')
+          .where('passenger_id', isEqualTo: user.uid)
+          .orderBy('created_at', descending: true)
+          .limit(50)
+          .get();
+
+      final asDriver = await _firestore
+          .collection('trips')
+          .where('driver_id', isEqualTo: user.uid)
+          .orderBy('created_at', descending: true)
+          .limit(50)
+          .get();
+
+      final trips = <Trip>{};
+      for (final d in asPassenger.docs) {
+        trips.add(Trip.fromJson(d.data()));
+      }
+      for (final d in asDriver.docs) {
+        trips.add(Trip.fromJson(d.data()));
+      }
+      final sorted = trips.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       if (mounted) {
         setState(() {
-          _trips = (data as List).map((j) => Trip.fromJson(j)).toList();
+          _trips = sorted;
           _loading = false;
         });
       }

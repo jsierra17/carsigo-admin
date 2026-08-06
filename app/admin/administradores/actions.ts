@@ -88,12 +88,13 @@ export async function updateAdmin(userId: string, formData: FormData) {
 
   const adminSupabase = createAdminClient()
 
-  // 1. Actualizar metadata en Auth
+  // 1. Actualizar metadata en Auth (best-effort: cuentas legadas sin
+  //    registro en AuthFirestore igualmente deben poder editar su perfil)
   const { error: authError } = await adminSupabase.auth.admin.updateUserById(
     userId,
-    { email, user_metadata: { name, role: 'admin' } }
+    { email, user_metadata: { name, role: 'admin', phone } }
   )
-  if (authError) return { error: authError.message }
+  if (authError) console.error('Auth update (no bloquea):', authError)
 
   // 2. Actualizar en tabla public.users
   const { error: updateError } = await adminSupabase

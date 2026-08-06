@@ -42,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Image.asset('assets/sub.png', width: 180, height: 180, fit: BoxFit.contain),
+              Image.asset('assets/sub-logo.png', width: 180, height: 180, fit: BoxFit.contain),
               const Spacer(flex: 1),
               Text(
                 'Regístrate para continuar',

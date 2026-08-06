@@ -154,15 +154,15 @@ export default function FinanzasPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg border border-purple-100 shadow-sm">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
               <Wallet size={20} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Panel de Finanzas</h1>
+            <h1 className="text-3xl font-black text-white tracking-tighter">Panel de Finanzas</h1>
           </div>
-          <p className="text-slate-500 font-medium">
+          <p className="text-slate-400 font-medium">
             Control contable, comisiones de plataforma y liquidación de conductores.
             {!tripStats.tieneDataReal && (
-              <span className="ml-2 text-amber-500 text-[10px] font-black uppercase tracking-widest">
+              <span className="ml-2 text-orange-400 text-[10px] font-black uppercase tracking-widest">
                 ⚠ Sin viajes completados aún
               </span>
             )}
@@ -172,14 +172,14 @@ export default function FinanzasPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handleDownloadCSV}
-            className="flex items-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-gray-200 shadow-sm"
+            className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60"
           >
             <Download size={14} />
             CSV
           </button>
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-gray-200 shadow-sm"
+            className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60"
           >
             <FileText size={14} />
             PDF
@@ -187,7 +187,7 @@ export default function FinanzasPage() {
           <button
             onClick={handleNewSettlement}
             disabled={isPending}
-            className="flex items-center gap-2 px-6 py-3 bg-[#00E5FF] hover:bg-[#00D0E8] text-[#131313] rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-[#00E5FF] hover:bg-[#00D0E8] text-[#131313] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60"
           >
             {isPending ? <Loader2 size={14} className="animate-spin" /> : <PlusCircle size={14} />}
             Nueva Liquidación
@@ -197,93 +197,93 @@ export default function FinanzasPage() {
 
       {/* Métricas Financieras */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[#141416] border border-white/5 p-8 rounded-3xl shadow-sm transition-all">
           <div className="flex justify-between items-start mb-6">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
+            <div className="p-2.5 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
               <TrendingUp size={24} />
             </div>
             {tripStats.tieneDataReal && (
-              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded uppercase tracking-tighter">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                 Dato Real
               </span>
             )}
           </div>
-          <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-1">Volumen Total</p>
-          <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+          <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1">Volumen Total</p>
+          <h3 className="text-3xl font-bold text-white tracking-tighter tabular-nums">
             ${tripStats.volumenTotal.toLocaleString('es-CO')}
           </h3>
-          <p className="text-[10px] text-slate-400 font-medium mt-4">
+          <p className="text-[10px] text-slate-500 font-medium mt-4">
             {tripStats.tieneDataReal ? 'Suma real de viajes completados' : 'Aún no hay viajes registrados'}
           </p>
         </div>
 
-        <div className="bg-white border border-blue-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[#141416] border border-white/5 p-8 rounded-3xl shadow-sm transition-all">
           <div className="flex justify-between items-start mb-6">
-            <div className="p-3 bg-[#00E5FF]/10 text-[#00606b] rounded-2xl border border-[#00E5FF]/20">
+            <div className="p-2.5 rounded-xl bg-[#00E5FF]/10 text-[#00E5FF]">
               <PieChart size={24} />
             </div>
-            <span className="px-2 py-0.5 bg-[#00E5FF] text-[#131313] text-[9px] font-black rounded uppercase tracking-tighter self-center">10% Plana</span>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-[#00E5FF]/10 text-[#00E5FF] border-[#00E5FF]/20 self-center">10% Plana</span>
           </div>
-          <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-1">Comisión CarSiGo</p>
-          <h3 className="text-4xl font-black text-[#00606b] tracking-tighter">
+          <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1">Comisión CarSiGo</p>
+          <h3 className="text-3xl font-bold text-[#00E5FF] tracking-tighter tabular-nums">
             ${tripStats.comisionCarSiGo.toLocaleString('es-CO')}
           </h3>
-          <p className="text-[10px] text-slate-400 font-medium mt-4">
+          <p className="text-[10px] text-slate-500 font-medium mt-4">
             {tripStats.tieneDataReal ? '10% del volumen real de viajes' : '10% estimado sin datos reales'}
           </p>
         </div>
 
-        <div className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-[#141416] border border-white/5 p-8 rounded-3xl shadow-sm transition-all">
           <div className="flex justify-between items-start mb-6">
-            <div className="p-3 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100">
+            <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-400">
               <Clock size={24} />
             </div>
           </div>
-          <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-1">Pendiente de Liquidar</p>
-          <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+          <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1">Pendiente de Liquidar</p>
+          <h3 className="text-3xl font-bold text-white tracking-tighter tabular-nums">
             ${saldoPendiente.toLocaleString('es-CO')}
           </h3>
-          <p className="text-[10px] text-slate-400 font-medium mt-4">
+          <p className="text-[10px] text-slate-500 font-medium mt-4">
             {tripStats.conductoresActivos} conductor{tripStats.conductoresActivos !== 1 ? 'es' : ''} activo{tripStats.conductoresActivos !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm">
+      <div className="bg-[#141416] border border-white/5 p-6 rounded-3xl shadow-sm">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
-            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Buscar por Referencia</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Buscar por Referencia</label>
             <input
               type="text"
               value={busquedaRef}
               onChange={e => setBusquedaRef(e.target.value)}
               placeholder="Ej: LIQ-20250323-1234"
-              className="w-full px-4 py-3 bg-slate-50/50 border border-gray-100 rounded-xl font-medium text-sm text-slate-800 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-300 transition-all"
+              className="w-full px-4 py-3 bg-[#0f0f11] border border-white/10 rounded-xl font-medium text-sm text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40 transition-all"
             />
           </div>
           <div>
-            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Desde</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Desde</label>
             <input
               type="date"
               value={fechaDesde}
               onChange={e => setFechaDesde(e.target.value)}
-              className="px-4 py-3 bg-slate-50/50 border border-gray-100 rounded-xl font-medium text-sm text-slate-800 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-300 transition-all"
+              className="px-4 py-3 bg-[#0f0f11] border border-white/10 rounded-xl font-medium text-sm text-white outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40 transition-all"
             />
           </div>
           <div>
-            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Hasta</label>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Hasta</label>
             <input
               type="date"
               value={fechaHasta}
               onChange={e => setFechaHasta(e.target.value)}
-              className="px-4 py-3 bg-slate-50/50 border border-gray-100 rounded-xl font-medium text-sm text-slate-800 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-300 transition-all"
+              className="px-4 py-3 bg-[#0f0f11] border border-white/10 rounded-xl font-medium text-sm text-white outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40 transition-all"
             />
           </div>
           {(busquedaRef || fechaDesde || fechaHasta) && (
             <button
               onClick={() => { setBusquedaRef(''); setFechaDesde(''); setFechaHasta(''); }}
-              className="px-5 py-3 text-slate-500 hover:text-slate-800 text-[10px] font-black uppercase tracking-widest border border-gray-200 rounded-xl hover:bg-slate-50 transition-all"
+              className="px-5 py-3 text-slate-400 hover:text-[#00E5FF] text-[10px] font-black uppercase tracking-widest border border-white/10 rounded-xl bg-white/5 hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 transition-all focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60"
             >
               Limpiar
             </button>
@@ -292,25 +292,25 @@ export default function FinanzasPage() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-slate-50/30">
+      <div className="bg-[#141416] border border-white/5 rounded-3xl shadow-sm overflow-hidden">
+        <div className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/2">
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tighter flex items-center gap-2">
-              <FileText className="text-[#00606b]" size={20} />
+            <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+              <FileText className="text-[#00E5FF]" size={20} />
               Historial de Liquidaciones
             </h3>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Registros del sistema</p>
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-widest mt-1">Registros del sistema</p>
           </div>
         </div>
 
         {isLoading ? (
           <div className="p-20 flex justify-center">
-            <Loader2 className="animate-spin text-blue-500" size={40} />
+            <Loader2 className="animate-spin text-[#00E5FF]" size={40} />
           </div>
         ) : filteredSettlements.length === 0 ? (
           <div className="p-20 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <Clock className="text-slate-200" size={32} />
+            <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Clock className="text-slate-500 opacity-20" size={32} />
             </div>
             <h4 className="text-lg font-black text-slate-400 uppercase tracking-tighter">
               Sin movimientos
@@ -319,19 +319,19 @@ export default function FinanzasPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left font-sans text-sm">
-              <thead className="bg-gray-50/50">
+              <thead className="bg-white/2">
                 <tr>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Referencia</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Comisión</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Referencia</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Comisión</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Fecha</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-white/5">
                 {filteredSettlements.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-8 py-6 font-bold text-slate-700 font-mono">{s.reference}</td>
-                    <td className="px-8 py-6 font-black text-emerald-600">${s.total_amount?.toLocaleString('es-CO')}</td>
-                    <td className="px-8 py-6 font-medium text-slate-500">
+                  <tr key={s.id} className="hover:bg-[#00E5FF]/5 transition-all">
+                    <td className="px-6 py-4 font-bold text-slate-200 font-mono">{s.reference}</td>
+                    <td className="px-6 py-4 font-black text-emerald-400">${s.total_amount?.toLocaleString('es-CO')}</td>
+                    <td className="px-6 py-4 font-medium text-slate-400">
                       {new Date(s.created_at).toLocaleString('es-CO')}
                     </td>
                   </tr>

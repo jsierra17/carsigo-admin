@@ -18,11 +18,11 @@ export default function AdminLayout({
   return (
     <AuthProvider>
       <ToastProvider>
-        <div className="flex w-full min-h-screen bg-gray-50">
+        <div className="flex w-full min-h-screen bg-[#0a0a0b] text-slate-100">
           {/* Sidebar: consume AuthContext (sin llamadas propias a Supabase) */}
           <Sidebar />
 
-          <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+          <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
             {/* Header: consume AuthContext (sin llamadas propias a Supabase) */}
             <Header />
 

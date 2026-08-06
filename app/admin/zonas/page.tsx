@@ -127,7 +127,7 @@ export default function ZonasPage() {
       setSearchQuery('');
       fetchZonas();
     } catch (error) {
-      toast.error('Error al guardar la zona.');
+      toast.error(error instanceof Error ? error.message : 'Error al guardar la zona.');
       console.error('Error al guardar zona:', error);
     } finally {
       setIsSaving(false);
@@ -141,7 +141,7 @@ export default function ZonasPage() {
       toast.success(`Zona eliminada: ${name}`);
       fetchZonas();
     } catch (error) {
-      toast.error('No se pudo eliminar la zona.');
+      toast.error(error instanceof Error ? error.message : 'No se pudo eliminar la zona.');
       console.error('Error al eliminar:', error);
     }
   };
@@ -152,7 +152,7 @@ export default function ZonasPage() {
       toast.info(`Estado de zona actualizado.`);
       fetchZonas();
     } catch (error) {
-      toast.error('No se pudo cambiar el estado de la zona.');
+      toast.error(error instanceof Error ? error.message : 'No se pudo cambiar el estado de la zona.');
       console.error('Error al cambiar estado:', error);
     }
   };
@@ -164,27 +164,27 @@ export default function ZonasPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 shadow-sm">
+            <div className="p-2 bg-[#00E5FF]/10 text-[#00E5FF] rounded-xl border border-[#00E5FF]/20 shadow-sm">
               <Globe size={20} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Geo-Cercas y Cobertura</h1>
+            <h1 className="text-3xl font-black text-white tracking-tighter">Geo-Cercas y Cobertura</h1>
           </div>
           <p className="text-slate-500 font-medium">Control geográfico inteligente. Busca municipios para habilitarlos en la red CarSiGo.</p>
         </div>
       </div>
 
       {/* Buscador de Municipios Light */}
-      <div className="bg-white border border-gray-100 p-6 rounded-[2.5rem] shadow-sm">
+      <div className="bg-[#141416] border border-white/5 p-6 rounded-3xl shadow-sm">
         <form onSubmit={handleSearchMunicipality} className="flex flex-col md:flex-row gap-4 items-center">
           <div className="flex-1 w-full relative group">
-            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-[#00E5FF] transition-colors">
               <Search size={22} />
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-8 py-5 bg-slate-50/50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/30 outline-none font-bold text-slate-800 transition-all placeholder:text-slate-400"
+              className="w-full pl-14 pr-12 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-[#00E5FF]/10 focus:border-[#00E5FF]/30 outline-none font-bold text-white transition-all placeholder:text-slate-500"
               placeholder="Ej: Cartagena, Montería, Sincelejo..."
             />
           </div>
@@ -208,57 +208,72 @@ export default function ZonasPage() {
                   ? ((parseFloat(result.boundingbox[3]) - parseFloat(result.boundingbox[2])) *
                      (parseFloat(result.boundingbox[1]) - parseFloat(result.boundingbox[0])) * 111 * 111).toFixed(0)
                   : '?';
+                const resultName = result.display_name.split(',')[0];
+                const alreadyExists = zonas.some(
+                  (z) => z.municipality_name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ===
+                    resultName.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                );
                 return (
                   <button
                     key={idx}
                     onClick={() => selectResult(searchResults, idx)}
                     className={`flex-shrink-0 p-4 rounded-2xl border-2 text-left transition-all ${
-                      selected
-                        ? 'bg-emerald-50 border-emerald-400 shadow-md'
-                        : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
+                      alreadyExists
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : selected
+                          ? 'bg-emerald-500/10 border-emerald-400/60 shadow-md'
+                          : 'bg-white/5 border-white/10 hover:border-[#00E5FF]/40 hover:shadow-sm'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-2 h-2 rounded-full ${selected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                      <span className="text-[10px] font-black text-slate-400 uppercase">{result.type || result.class}</span>
+                      <div className={`w-2 h-2 rounded-full ${alreadyExists ? 'bg-red-500' : selected ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+                      <span className={`text-[10px] font-black uppercase ${alreadyExists ? 'text-red-500' : 'text-slate-400'}`}>{alreadyExists ? 'Ya habilitada' : (result.type || result.class)}</span>
                     </div>
-                    <p className="font-black text-slate-800 text-sm leading-tight">{result.display_name.split(',')[0]}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">{areaKm2} km² aprox.</p>
+                    <p className={`font-black text-sm leading-tight ${alreadyExists ? 'text-red-400' : 'text-white'}`}>{resultName}</p>
+                    <p className="text-[10px] text-slate-500 mt-1">{areaKm2} km² aprox.</p>
                   </button>
                 );
               })}
             </div>
 
             {/* Botón Habilitar */}
-            {previewZone && (
-              <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+            {previewZone && (() => {
+              const alreadyExists = zonas.some(
+                (z) => z.municipality_name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ===
+                  previewZone.name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              );
+              return (
+              <div className={`p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 ${alreadyExists ? 'bg-red-500/10 border border-red-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
-                    <Navigation size={24} className="animate-pulse" />
+                  <div className={`w-12 h-12 bg-[#141416] rounded-2xl flex items-center justify-center shadow-sm border ${alreadyExists ? 'text-red-400 border-red-500/20' : 'text-emerald-400 border-emerald-500/20'}`}>
+                    <Navigation size={24} className={alreadyExists ? '' : 'animate-pulse'} />
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Área Seleccionada</p>
-                    <h4 className="text-xl font-black text-slate-800 tracking-tight">{previewZone.name}</h4>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${alreadyExists ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {alreadyExists ? 'Zona ya habilitada' : 'Área Seleccionada'}
+                    </p>
+                    <h4 className="text-xl font-black text-white tracking-tight">{previewZone.name}</h4>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => { setSearchResults([]); setPreviewZone(null); setSelectedResultIndex(null); }}
-                    className="px-6 py-4 text-slate-400 font-bold hover:text-slate-600"
+                    className="px-6 py-4 text-slate-400 font-bold hover:text-slate-300"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleCreateZone}
-                    disabled={isSaving}
-                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-3"
+                    disabled={isSaving || alreadyExists}
+                    className="px-8 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-xl font-black uppercase tracking-wider transition-all shadow-lg flex items-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                     Habilitar Zona
                   </button>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>
@@ -267,16 +282,16 @@ export default function ZonasPage() {
 
         {/* Listado de Zonas Activas Light */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 shadow-sm h-[650px] flex flex-col">
+          <div className="bg-[#141416] border border-white/5 rounded-3xl p-6 shadow-sm h-[650px] flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Cobertura</h3>
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg border border-blue-100">{zonas.length}</span>
+              <h3 className="text-lg font-black text-white tracking-tight uppercase">Cobertura</h3>
+              <span className="px-3 py-1 bg-[#00E5FF]/10 text-[#00E5FF] text-[10px] font-black rounded-lg border border-[#00E5FF]/20">{zonas.length}</span>
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-16 bg-slate-50 rounded-2xl animate-pulse"></div>
+                  <div key={i} className="h-16 bg-white/10 rounded-2xl animate-pulse"></div>
                 ))
               ) : zonas.length === 0 ? (
                 <div className="text-center py-20 opacity-20">
@@ -285,12 +300,12 @@ export default function ZonasPage() {
                 </div>
               ) : (
                 zonas.map((zona) => (
-                  <div key={zona.id} className="group p-4 bg-slate-50/50 hover:bg-white border border-transparent hover:border-blue-100 rounded-2xl transition-all flex flex-col gap-3 shadow-sm hover:shadow-md">
+                  <div key={zona.id} className="group p-4 bg-white/5 hover:bg-[#00E5FF]/5 border border-transparent hover:border-[#00E5FF]/25 rounded-2xl transition-all flex flex-col gap-3 shadow-sm hover:shadow-md">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-2">
                           <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${zona.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                          <span className="font-black text-slate-800 text-[12px] leading-tight break-words pr-2">
+                          <span className="font-black text-white text-[12px] leading-tight break-words pr-2">
                             {zona.municipality_name}
                           </span>
                         </div>
@@ -301,14 +316,14 @@ export default function ZonasPage() {
                       <div className="flex items-center gap-1 shrink-0 pt-0.5">
                         <button
                           onClick={() => handleToggleStatus(zona.id, zona.is_active)}
-                          className={`p-2 rounded-xl transition-all ${zona.is_active ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}`}
+                          className={`p-2 rounded-xl transition-all ${zona.is_active ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'}`}
                           title={zona.is_active ? 'Desactivar Cobertura' : 'Activar Cobertura'}
                         >
                           {zona.is_active ? <PowerOff size={16} /> : <Power size={16} />}
                         </button>
                         <button
                           onClick={() => handleDelete(zona.id, zona.municipality_name)}
-                          className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
+                          className="p-2 text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all"
                           title="Eliminar Zona Permanentemente"
                         >
                           <Trash2 size={16} />
@@ -323,19 +338,19 @@ export default function ZonasPage() {
         </div>
 
         {/* Mapa con Leaflet (sin WebGL) */}
-        <div className="lg:col-span-8 h-[650px] bg-white rounded-[3rem] overflow-hidden border border-gray-100 shadow-xl relative">
+        <div className="lg:col-span-8 h-[650px] bg-[#141416] rounded-3xl overflow-hidden border border-white/10 shadow-xl relative">
           <ZoneMap zonas={zonas} previewZone={previewZone} mapRef={mapRef} />
           <div className="absolute top-6 left-6 z-[1000]">
-            <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-200 flex items-center gap-3 shadow-sm pointer-events-none">
-              <Layers className="text-blue-500" size={18} />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Capa Vectorial CarSiGo</span>
+            <div className="bg-[#0b0b0d]/90 backdrop-blur-md p-3 rounded-2xl border border-white/10 flex items-center gap-3 shadow-sm pointer-events-none">
+              <Layers className="text-[#00E5FF]" size={18} />
+              <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Capa Vectorial CarSiGo</span>
             </div>
           </div>
 
           <div className="absolute top-6 left-6">
-            <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-gray-200 flex items-center gap-3 shadow-sm">
-              <Layers className="text-blue-500" size={18} />
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Capa Vectorial CarSiGo</span>
+            <div className="bg-[#0b0b0d]/90 backdrop-blur-md p-3 rounded-2xl border border-white/10 flex items-center gap-3 shadow-sm">
+              <Layers className="text-[#00E5FF]" size={18} />
+              <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest">Capa Vectorial CarSiGo</span>
             </div>
           </div>
         </div>

@@ -40,11 +40,11 @@ export async function getTripStats() {
     let comisionReal = 0
 
     if (trips.length > 0) {
-      volumenReal = trips.reduce((sum, t) => sum + (Number(t.fare_amount) || 0), 0)
-      comisionReal = trips.reduce((sum, t) => sum + (Number(t.commission_amount) || 0), 0)
+      volumenReal = trips.reduce((sum: number, t: { fare_amount?: number }) => sum + (Number(t.fare_amount) || 0), 0)
+      comisionReal = trips.reduce((sum: number, t: { commission_amount?: number }) => sum + (Number(t.commission_amount) || 0), 0)
       if (comisionReal === 0) comisionReal = volumenReal * 0.10
     } else if (wallets.length > 0) {
-      const saldoTotal = wallets.reduce((sum, w) => sum + (Number(w.balance) || 0), 0)
+      const saldoTotal = wallets.reduce((sum: number, w: { balance?: number }) => sum + (Number(w.balance) || 0), 0)
       volumenReal = saldoTotal
       comisionReal = saldoTotal * 0.10
     }

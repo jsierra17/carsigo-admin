@@ -45,7 +45,7 @@ export default function DashboardPage() {
         setUltimaActualizacion(new Date());
         cargarDatos();
       })
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         setRealtimeActivo(status === 'SUBSCRIBED');
       });
 
@@ -59,19 +59,19 @@ export default function DashboardPage() {
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
 
       {/* Encabezado con indicador Realtime */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard General</h1>
-          <p className="text-gray-500 mt-1">Resumen en tiempo real de la operación de CarSiGo.</p>
+          <h1 className="text-3xl font-bold text-white">Dashboard General</h1>
+          <p className="text-slate-400 mt-1">Resumen en tiempo real de la operación de CarSiGo.</p>
         </div>
         {/* Indicador de conexión Realtime */}
         <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${
           realtimeActivo
-            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-            : 'bg-slate-50 text-slate-400 border-slate-100'
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            : 'bg-white/5 text-slate-400 border-white/10'
         }`}>
           <Radio size={12} className={realtimeActivo ? 'animate-pulse' : ''} />
-          {realtimeActivo ? 'En Vivo' : 'Conectando...'}
+          {realtimeActivo ? 'En Vivo' : 'Conectando…'}
           {ultimaActualizacion && (
             <span className="text-[9px] opacity-60 font-medium normal-case">
               · actualizado {ultimaActualizacion.toLocaleTimeString('es-CO', { timeStyle: 'short' })}
@@ -84,80 +84,80 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
         {/* Pasajeros */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[#141416] p-6 rounded-2xl border border-white/5 shadow-sm hover:border-[#00E5FF]/25 hover:shadow-[0_0_24px_rgba(0,229,255,0.06)] transition-all group">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500">Pasajeros Registrados</p>
+              <p className="text-sm font-medium text-slate-400">Pasajeros Registrados</p>
               {isLoading ? (
-                <div className="h-8 w-16 bg-gray-200 animate-pulse rounded mt-2"></div>
+                <div className="h-8 w-16 bg-white/10 animate-pulse rounded mt-2"></div>
               ) : (
-                <h3 className="text-3xl font-bold text-gray-900 mt-1">{metrics.pasajeros}</h3>
+                <h3 className="text-3xl font-bold text-white mt-1 tabular-nums">{metrics.pasajeros}</h3>
               )}
             </div>
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-3 bg-[#00E5FF]/10 text-[#00E5FF] rounded-xl group-hover:scale-105 transition-transform">
               <Users size={24} />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm text-green-600 font-medium">
+          <div className="mt-4 flex items-center text-sm text-emerald-400 font-medium">
             <ArrowUpRight size={16} className="mr-1" />
             <span>Tiempo real</span>
           </div>
         </div>
 
         {/* Conductores */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[#141416] p-6 rounded-2xl border border-white/5 shadow-sm hover:border-emerald-500/25 hover:shadow-[0_0_24px_rgba(34,197,94,0.06)] transition-all group">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500">Conductores Activos</p>
+              <p className="text-sm font-medium text-slate-400">Conductores Activos</p>
               {isLoading ? (
-                <div className="h-8 w-16 bg-gray-200 animate-pulse rounded mt-2"></div>
+                <div className="h-8 w-16 bg-white/10 animate-pulse rounded mt-2"></div>
               ) : (
-                <h3 className="text-3xl font-bold text-gray-900 mt-1">{metrics.conductores}</h3>
+                <h3 className="text-3xl font-bold text-white mt-1 tabular-nums">{metrics.conductores}</h3>
               )}
             </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl group-hover:scale-105 transition-transform">
               <Car size={24} />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm text-emerald-600 font-medium">
+          <div className="mt-4 flex items-center text-sm text-emerald-400 font-medium">
             <ArrowUpRight size={16} className="mr-1" />
             <span>Operando ahora</span>
           </div>
         </div>
 
         {/* Pendientes */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+        <div className="bg-[#141416] p-6 rounded-2xl border border-white/5 shadow-sm hover:border-orange-500/25 hover:shadow-[0_0_24px_rgba(249,115,22,0.06)] transition-all group">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500">Conductores Pendientes</p>
+              <p className="text-sm font-medium text-slate-400">Conductores Pendientes</p>
               {isLoading ? (
-                <div className="h-8 w-16 bg-gray-200 animate-pulse rounded mt-2"></div>
+                <div className="h-8 w-16 bg-white/10 animate-pulse rounded mt-2"></div>
               ) : (
-                <h3 className="text-3xl font-bold text-gray-900 mt-1">{metrics.pendientes}</h3>
+                <h3 className="text-3xl font-bold text-white mt-1 tabular-nums">{metrics.pendientes}</h3>
               )}
             </div>
-            <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
+            <div className="p-3 bg-orange-500/10 text-orange-400 rounded-xl group-hover:scale-105 transition-transform">
               <AlertCircle size={24} />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm text-orange-600 font-medium">
+          <div className="mt-4 flex items-center text-sm text-orange-400 font-medium">
             <span>Requieren validación manual</span>
           </div>
         </div>
 
         {/* Billetera (solo superadmin) */}
         {role === 'superadmin' && (
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all opacity-80 animate-in zoom-in duration-300">
+          <div className="bg-[#141416] p-6 rounded-2xl border border-white/5 shadow-sm hover:border-purple-500/25 hover:shadow-[0_0_24px_rgba(168,85,247,0.06)] transition-all opacity-90 animate-in zoom-in duration-300 group">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm font-medium text-gray-500">Ingresos (Comisión 10%)</p>
-                <h3 className="text-3xl font-bold text-gray-900 mt-1">$0</h3>
+                <p className="text-sm font-medium text-slate-400">Ingresos (Comisión 10%)</p>
+                <h3 className="text-3xl font-bold text-white mt-1 tabular-nums">$0</h3>
               </div>
-              <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+              <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl group-hover:scale-105 transition-transform">
                 <Wallet size={24} />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-sm text-gray-500 font-bold uppercase tracking-widest text-[10px]">
+            <div className="mt-4 flex items-center text-sm text-slate-500 font-bold uppercase tracking-widest text-[10px]">
               <span>Contabilidad Central</span>
             </div>
           </div>
@@ -165,16 +165,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Tabla de Conductores Recientes */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
-        <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-slate-50/30">
+      <div className="bg-[#141416] rounded-3xl border border-white/5 shadow-sm overflow-hidden min-h-[400px]">
+        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/2 flex-wrap gap-4">
           <div>
-            <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-              <Clock className="text-blue-600" size={24} />
+            <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
+              <Clock className="text-[#00E5FF]" size={24} />
               Últimos Conductores Registrados
             </h3>
-            <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">Actividad del Sistema en Tiempo Real</p>
+            <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-widest">Actividad del Sistema en Tiempo Real</p>
           </div>
-          <div className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[11px] font-black uppercase tracking-wider border border-blue-100 shadow-sm">
+          <div className="px-4 py-1.5 bg-[#00E5FF]/10 text-[#00E5FF] rounded-full text-[11px] font-black uppercase tracking-wider border border-[#00E5FF]/20 shadow-sm">
             5 Recientes
           </div>
         </div>
@@ -182,60 +182,60 @@ export default function DashboardPage() {
         <div className="overflow-x-auto">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-              <Loader2 className="animate-spin text-blue-600" size={40} />
-              <p className="text-gray-400 font-bold mt-4 tracking-tighter">Sincronizando con CarSiGo Cloud...</p>
+              <Loader2 className="animate-spin text-[#00E5FF]" size={40} />
+              <p className="text-slate-400 font-bold mt-4 tracking-tight">Sincronizando con CarSiGo Cloud…</p>
             </div>
           ) : latestDrivers.length === 0 ? (
-            <div className="text-center py-24 text-gray-400">
+            <div className="text-center py-24 text-slate-500">
               <Car size={48} className="mx-auto mb-4 opacity-20" />
               <p className="font-bold text-lg">No hay conductores registrados todavía</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50">
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Conductor</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] hidden md:table-cell">Contacto</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Fecha Registro</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Acción</th>
+                <tr className="bg-white/2">
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Conductor</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden md:table-cell">Contacto</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Fecha Registro</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 font-sans">
+              <tbody className="divide-y divide-white/5 font-sans">
                 {latestDrivers.map((driver) => (
-                  <tr key={driver.id} className="hover:bg-blue-50/20 transition-all group">
+                  <tr key={driver.id} className="hover:bg-[#00E5FF]/5 transition-all group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black text-lg group-hover:scale-110 transition-transform shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-[#00E5FF]/10 text-[#00E5FF] flex items-center justify-center font-black text-lg group-hover:scale-110 transition-transform shadow-sm">
                           {driver.name?.charAt(0) || 'D'}
                         </div>
                         <div>
-                          <p className="font-black text-gray-900 tracking-tight text-sm">{driver.name}</p>
-                          <p className="text-[11px] text-gray-400 font-medium">ID: {driver.id.substring(0, 8)}...</p>
+                          <p className="font-black text-white tracking-tight text-sm">{driver.name}</p>
+                          <p className="text-[11px] text-slate-500 font-medium">ID: {driver.id.substring(0, 8)}…</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-6 hidden md:table-cell">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-gray-600 font-bold">
-                          <Phone size={14} className="text-blue-500" />
+                        <div className="flex items-center gap-2 text-xs text-slate-300 font-bold">
+                          <Phone size={14} className="text-[#00E5FF]" />
                           {driver.phone || 'S/N'}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium">
-                          <Mail size={14} className="text-gray-300" />
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
+                          <Mail size={14} className="text-slate-600" />
                           {driver.email}
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <p className="text-sm font-bold text-gray-700">
+                      <p className="text-sm font-bold text-slate-200">
                         {new Date(driver.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
-                      <p className="text-[10px] text-gray-400 font-medium tracking-tight">
+                      <p className="text-[10px] text-slate-500 font-medium tracking-tight">
                         {new Date(driver.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:border-blue-200 transition-all shadow-sm">
+                      <button className="px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#00E5FF]/10 hover:border-[#00E5FF]/30 hover:text-[#00E5FF] transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
                         Ver Perfil
                       </button>
                     </td>

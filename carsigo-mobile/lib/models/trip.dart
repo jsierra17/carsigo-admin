@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum TripStatus { pending, accepted, inProgress, completed, cancelled }
 
 extension TripStatusX on TripStatus {
@@ -32,8 +34,11 @@ class Trip {
   final String? dropoffAddress;
   final double pickupLat;
   final double pickupLng;
+  final double? dropoffLat;
+  final double? dropoffLng;
   final double distanceKm;
   final double durationMin;
+  final String vehicleType;
   final DateTime createdAt;
   final DateTime? acceptedAt;
   final DateTime? startedAt;
@@ -50,8 +55,11 @@ class Trip {
     this.dropoffAddress,
     this.pickupLat = 0,
     this.pickupLng = 0,
+    this.dropoffLat,
+    this.dropoffLng,
     this.distanceKm = 0,
     this.durationMin = 0,
+    this.vehicleType = 'moto',
     required this.createdAt,
     this.acceptedAt,
     this.startedAt,
@@ -59,6 +67,13 @@ class Trip {
   });
 
   String get statusLabel => status.label;
+
+  static DateTime? _toDate(dynamic v) {
+    if (v == null) return null;
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    return DateTime.tryParse(v.toString());
+  }
 
   factory Trip.fromJson(Map<String, dynamic> json) {
     return Trip(
@@ -73,12 +88,17 @@ class Trip {
       commissionAmount: (json['commission_amount'] ?? 0).toDouble(),
       pickupAddress: json['pickup_address'] ?? '',
       dropoffAddress: json['dropoff_address'],
+      pickupLat: (json['pickup_lat'] ?? 0).toDouble(),
+      pickupLng: (json['pickup_lng'] ?? 0).toDouble(),
+      dropoffLat: (json['dropoff_lat'] as num?)?.toDouble(),
+      dropoffLng: (json['dropoff_lng'] as num?)?.toDouble(),
       distanceKm: (json['distance_km'] ?? 0).toDouble(),
       durationMin: (json['duration_min'] ?? 0).toDouble(),
-      createdAt: DateTime.parse(json['created_at']),
-      acceptedAt: json['accepted_at'] != null ? DateTime.parse(json['accepted_at']) : null,
-      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at']) : null,
-      completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at']) : null,
+      vehicleType: json['vehicle_type'] ?? 'moto',
+      createdAt: _toDate(json['created_at']) ?? DateTime.now(),
+      acceptedAt: _toDate(json['accepted_at']),
+      startedAt: _toDate(json['started_at']),
+      completedAt: _toDate(json['completed_at']),
     );
   }
 
@@ -93,8 +113,11 @@ class Trip {
     'dropoff_address': dropoffAddress,
     'pickup_lat': pickupLat,
     'pickup_lng': pickupLng,
+    'dropoff_lat': dropoffLat,
+    'dropoff_lng': dropoffLng,
     'distance_km': distanceKm,
     'duration_min': durationMin,
+    'vehicle_type': vehicleType,
   };
 
   Trip copyWith({String? driverId, TripStatus? status}) {

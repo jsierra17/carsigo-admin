@@ -40,6 +40,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   bool _loadingTrips = true;
 
   LatLng? _currentPos;
+  List<LatLng> _routePoints = const [];
+  bool _loadingRoute = false;
 
   StreamSubscription? _pendingSub;
   StreamSubscription? _tripSub;
@@ -73,7 +75,10 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     _posSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
     ).listen((pos) {
-      if (mounted) setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+      if (mounted) {
+        setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+        if (_activeTrip != null && !_loadingRoute) _loadRouteFor(_activeTrip!);
+      }
     });
   }
 
@@ -81,13 +86,16 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
 
-    final activeTrip = await _tripService.getActiveDriverTrip(user.id);
+    final activeTrip = await _tripService.getActiveDriverTrip(user.uid);
     if (mounted) {
       setState(() {
         _activeTrip = activeTrip;
         _isAvailable = activeTrip != null;
       });
-      if (activeTrip != null) _subscribeToActiveTrip(activeTrip.id);
+      if (activeTrip != null) {
+        _subscribeToActiveTrip(activeTrip.id);
+        _loadRouteFor(activeTrip);
+      }
     }
 
     await _loadPendingTrips();
@@ -110,7 +118,8 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   Future<PricingBreakdown?> _estimateFare(Trip trip) async {
     if (trip.distanceKm <= 0) return null;
     try {
-      return await _engine.calculateFare(vehicleType: VehicleType.moto, distanceKm: trip.distanceKm);
+      final vehicleType = trip.vehicleType == 'car' ? VehicleType.car : VehicleType.moto;
+      return await _engine.calculateFare(vehicleType: vehicleType, distanceKm: trip.distanceKm);
     } catch (_) {
       return null;
     }
@@ -130,30 +139,66 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     _tripSub = _tripService.subscribeToTrip(tripId).listen((trip) {
       if (mounted) {
         setState(() => _activeTrip = trip);
+        _loadRouteFor(trip);
         if (trip.status == TripStatus.completed || trip.status == TripStatus.cancelled) {
-          setState(() { _activeTrip = null; _isAvailable = false; });
+          setState(() { _activeTrip = null; _isAvailable = false; _routePoints = const []; });
         }
       }
     });
+  }
+
+  Future<void> _loadRouteFor(Trip trip) async {
+    final origin = _currentPos;
+    if (origin == null) return;
+    final destLat = trip.status == TripStatus.inProgress
+        ? (trip.dropoffLat ?? trip.pickupLat)
+        : trip.pickupLat;
+    final destLng = trip.status == TripStatus.inProgress
+        ? (trip.dropoffLng ?? trip.pickupLng)
+        : trip.pickupLng;
+    if (destLat == 0 && destLng == 0) return;
+
+    setState(() => _loadingRoute = true);
+    try {
+      final route = await LocationService.getRoute(
+        fromLat: origin.latitude,
+        fromLng: origin.longitude,
+        toLat: destLat,
+        toLng: destLng,
+      );
+      if (mounted) {
+        setState(() => _routePoints = route.points);
+        if (route.points.isNotEmpty) {
+          final mid = route.points[route.points.length ~/ 2];
+          _mapCtrl.move(mid, 14);
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _routePoints = const []);
+    } finally {
+      if (mounted) setState(() => _loadingRoute = false);
+    }
   }
 
   Future<void> _toggleAvailability(bool available) async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     setState(() => _isAvailable = available);
-    await _tripService.setDriverAvailability(user.id, available);
+    await _tripService.setDriverAvailability(user.uid, available);
     if (available) _loadPendingTrips();
   }
 
   Future<void> _acceptTrip(Trip trip) async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    await _tripService.acceptTrip(trip.id, user.id);
+    await _tripService.acceptTrip(trip.id, user.uid);
     setState(() {
-      _activeTrip = trip.copyWith(driverId: user.id, status: TripStatus.accepted);
+      _activeTrip = trip.copyWith(driverId: user.uid, status: TripStatus.accepted);
       _tripInfos = [];
+      _routePoints = const [];
     });
     _subscribeToActiveTrip(trip.id);
+    _loadRouteFor(trip);
   }
 
   Future<void> _rejectTrip(Trip trip) async {
@@ -215,7 +260,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
             userAgentPackageName: 'com.carsigo.app',
           ),
           MarkerLayer(markers: markers),
@@ -241,14 +286,24 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     if (_currentPos != null) {
       markers.add(Marker(point: _currentPos!, child: const Icon(Icons.my_location, color: Colors.blue, size: 24)));
     }
-    markers.add(Marker(
-      point: const LatLng(0, 0),
-      child: Icon(
-        t.status == TripStatus.accepted ? Icons.directions_car
-            : t.status == TripStatus.inProgress ? Icons.navigation : Icons.check_circle,
-        size: 48, color: _cyan,
-      ),
-    ));
+    final destLat = t.status == TripStatus.inProgress
+        ? (t.dropoffLat ?? t.pickupLat)
+        : t.pickupLat;
+    final destLng = t.status == TripStatus.inProgress
+        ? (t.dropoffLng ?? t.pickupLng)
+        : t.pickupLng;
+    if (destLat != 0 || destLng != 0) {
+      markers.add(Marker(
+        point: LatLng(destLat, destLng),
+        child: Icon(
+          t.status == TripStatus.accepted ? Icons.location_on
+              : t.status == TripStatus.inProgress ? Icons.flag : Icons.check_circle,
+          size: 48, color: _cyan,
+        ),
+        width: 48,
+        height: 48,
+      ));
+    }
 
     final canStart = t.status == TripStatus.accepted;
     final canComplete = t.status == TripStatus.inProgress;
@@ -262,9 +317,29 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
             userAgentPackageName: 'com.carsigo.app',
           ),
+          if (_routePoints.length >= 2)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: _routePoints,
+                  strokeWidth: 5,
+                  color: _cyan,
+                ),
+              ],
+            )
+          else if (_currentPos != null && (destLat != 0 || destLng != 0))
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: [_currentPos!, LatLng(destLat, destLng)],
+                  strokeWidth: 3,
+                  color: _cyan.withAlpha(140),
+                ),
+              ],
+            ),
           MarkerLayer(markers: markers),
         ],
       ),
