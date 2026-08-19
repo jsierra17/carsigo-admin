@@ -85,7 +85,31 @@ class _ProfileContent extends ConsumerWidget {
             _InfoRow(icon: Icons.person, label: 'Rol', value: roleLabel),
           ]),
         ),
-        const SizedBox(height: 32),
+        if (profile.role != UserRole.driver && profile.role != UserRole.admin) ...[
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _openDriverRequest(context, ref, profile),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: CarSiGoColors.green,
+                side: const BorderSide(color: CarSiGoColors.green, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              icon: const Icon(Icons.directions_car, size: 20),
+              label: const Text('Quiero ser conductor'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Si quieres manejar, envía tu solicitud aquí. El panel lo revisa '
+            'y te activa como conductor.',
+            style: TextStyle(color: _textMuted, fontSize: 11, height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+        ],
+        const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -109,6 +133,158 @@ class _ProfileContent extends ConsumerWidget {
     final navigator = Navigator.of(context);
     await ref.read(authControllerProvider.notifier).signOut();
     navigator.popUntil((route) => route.isFirst);
+  }
+
+  void _openDriverRequest(
+    BuildContext context,
+    WidgetRef ref,
+    UserProfile profile,
+  ) async {
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _DriverRequestSheet(profile: profile),
+    );
+    if (submitted == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Solicitud enviada. El panel la revisará para '
+              'activarte como conductor.'),
+          backgroundColor: CarSiGoColors.green,
+        ),
+      );
+    }
+  }
+}
+
+class _DriverRequestSheet extends ConsumerStatefulWidget {
+  final UserProfile profile;
+  const _DriverRequestSheet({required this.profile});
+
+  @override
+  ConsumerState<_DriverRequestSheet> createState() => _DriverRequestSheetState();
+}
+
+class _DriverRequestSheetState extends ConsumerState<_DriverRequestSheet> {
+  final _plateCtrl = TextEditingController();
+  String _vehicleType = 'moto';
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _plateCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final plate = _plateCtrl.text.trim().toUpperCase();
+    if (plate.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escribe la placa de tu vehículo')),
+      );
+      return;
+    }
+    setState(() => _sending = true);
+
+    final authService = ref.read(authServiceProvider);
+    final user = authService.currentUser;
+    var ok = false;
+    if (user != null) {
+      try {
+        await authService.createDriverApplication(
+          userId: user.uid,
+          fullName: widget.profile.displayName,
+          email: user.email ?? '',
+          phone: widget.profile.phone,
+          vehicleType: _vehicleType,
+          plate: plate,
+        );
+        ok = true;
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() => _sending = false);
+      Navigator.of(context).pop(ok);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Quiero ser conductor',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Poppins', fontSize: 18, fontWeight: FontWeight.w800, color: _textPrimary),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'La solicitud queda pendiente; el administrador la aprueba en el panel.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: _textMuted, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              initialValue: _vehicleType,
+              decoration: _fieldDecoration('Tipo de vehículo', Icons.directions_car),
+              items: const [
+                DropdownMenuItem(value: 'moto', child: Text('Moto')),
+                DropdownMenuItem(value: 'auto', child: Text('Automóvil')),
+                DropdownMenuItem(value: 'camioneta', child: Text('Camioneta')),
+              ],
+              onChanged: (v) => setState(() => _vehicleType = v ?? 'moto'),
+            ),
+            const SizedBox(height: 14),
+TextField(
+              controller: _plateCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                labelText: 'Placa del vehículo',
+                prefixIcon: const Icon(Icons.pin_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _border)),
+              ),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              height: 50,
+              child: FilledButton.icon(
+                onPressed: _sending ? null : _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: CarSiGoColors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                icon: _sending
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send, size: 18),
+                label: Text(_sending ? 'Enviando…' : 'Enviar solicitud'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: _surfaceLight,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _border)),
+    );
   }
 }
 

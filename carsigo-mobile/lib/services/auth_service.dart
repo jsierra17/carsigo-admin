@@ -127,25 +127,26 @@ class AuthService {
   }
 
   /// Crea una solicitud de conductor pendiente de revisión en el panel admin.
+  /// Usa exactamente los campos permitidos por Firestore Rules
+  /// (user_id, status, name, email, phone, vehicle_type, plate, created_at).
   Future<void> createDriverApplication({
     required String userId,
     required String fullName,
-    String? plate,
-    String? vehicleType,
+    required String email,
+    required String phone,
+    required String vehicleType,
+    required String plate,
   }) async {
     final docRef = _firestore.collection('driver_applications').doc();
     await docRef.set({
-      'id': docRef.id,
       'user_id': userId,
-      'full_name': fullName,
-      'brand': '',
-      'model': '',
-      'color': '',
-      'plate': plate ?? '',
-      'vehicle_type': vehicleType ?? 'moto',
       'status': 'pending',
+      'name': fullName,
+      'email': email,
+      'phone': phone,
+      'vehicle_type': vehicleType,
+      'plate': plate.trim().toUpperCase(),
       'created_at': Timestamp.now(),
-      'id_number': '',
     });
   }
 
@@ -154,14 +155,27 @@ class AuthService {
   Future<void> _syncUserProfile(firebase_auth.User firebaseUser) async {
     final existing = await getUserProfile(firebaseUser.uid);
 
-    // Solo actualizar si el perfil ya existe (los usuarios nuevos pasan por
-    // RoleSelectionScreen para elegir rol).
-    if (existing != null) {
-      final updated = existing.copyWith(
-        fullName: firebaseUser.displayName ?? existing.fullName,
-        avatarUrl: firebaseUser.photoURL ?? existing.avatarUrl,
-      );
-      await createProfile(updated);
+    if (existing == null) {
+      // Nuevos usuarios: SIEMPRE entran como pasajero (sin pantalla de
+      // elección de rol). Quien quiera conducir lo solicita desde su perfil
+      // y el panel admin le aprueba el rol.
+      await createProfile(UserProfile(
+        id: firebaseUser.uid,
+        phone: firebaseUser.phoneNumber ?? '',
+        fullName: firebaseUser.displayName ??
+            firebaseUser.email?.split('@').first ??
+            '',
+        role: UserRole.passenger,
+        avatarUrl: firebaseUser.photoURL,
+        createdAt: DateTime.now(),
+      ));
+      return;
     }
+
+    final updated = existing.copyWith(
+      fullName: firebaseUser.displayName ?? existing.fullName,
+      avatarUrl: firebaseUser.photoURL ?? existing.avatarUrl,
+    );
+    await createProfile(updated);
   }
 }

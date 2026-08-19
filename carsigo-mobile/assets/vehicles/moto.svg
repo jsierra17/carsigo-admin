@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="motoG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="17" cy="45" r="8" fill="#15151a"/>
+  <circle cx="17" cy="45" r="3.4" fill="#cfd8dc"/>
+  <circle cx="45" cy="45" r="8" fill="#15151a"/>
+  <circle cx="45" cy="45" r="3.4" fill="#cfd8dc"/>
+  <path d="M13 41 C13 34 24 27 30 27 C34 27 36 30 38 34 C40 37 42 38 46 38 L47 43 L13 43 Z" fill="url(#motoG)"/>
+  <rect x="24" y="23" width="13" height="6" rx="3" fill="#134e4a"/>
+  <path d="M10 35 L20 31 L24 36" stroke="#15151a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47 37 C50 37 52 39 52 41" stroke="#15151a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</svg>

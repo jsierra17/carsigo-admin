@@ -261,7 +261,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
+            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
             userAgentPackageName: 'com.carsigo.app',
           ),
           MarkerLayer(markers: markers),
@@ -318,7 +318,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
+            urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${LocationService.mapboxToken}',
             userAgentPackageName: 'com.carsigo.app',
           ),
           if (_routePoints.length >= 2)

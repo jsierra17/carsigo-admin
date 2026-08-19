@@ -11,6 +11,17 @@ class ZoneInfo {
   final double baseMultiplier;
   final List<List<List<double>>> polygons;
 
+  /// Radio del casco urbano (km) desde el centro urbano de la zona.
+  /// Configurable en Firestore con `urban_radius_km`; por defecto 2.5 km
+  /// (El Carmen de Bolívar: casco urbano + alrededores cercanos, sin rural).
+  final double urbanRadiusKm;
+
+  /// Centro real del casco urbano: viene de `center_lat`/`center_lng` de
+  /// Firestore si existen; si no, de un municipio conocido; si no, se usa el
+  /// centroide del polígono (poco fiable en municipios con zona rural amplia).
+  final double? urbanCenterLat;
+  final double? urbanCenterLng;
+
   late final double minLat;
   late final double maxLat;
   late final double minLng;
@@ -23,6 +34,9 @@ class ZoneInfo {
     required this.municipalityName,
     required this.baseMultiplier,
     this.polygons = const [],
+    this.urbanRadiusKm = 2.5,
+    this.urbanCenterLat,
+    this.urbanCenterLng,
   }) {
     _computeBounds();
   }
@@ -56,6 +70,23 @@ class ZoneInfo {
       if (_pointInPolygon(lat, lng, polygon)) return true;
     }
     return false;
+  }
+
+  /// ¿Está el punto dentro del casco urbano (radio) de esta zona?
+  bool containsUrban(double lat, double lng) {
+    final clat = urbanCenterLat ?? centerLat;
+    final clng = urbanCenterLng ?? centerLng;
+    return distanceToKm(lat, lng, clat, clng) <= urbanRadiusKm;
+  }
+
+  static double distanceToKm(double lat1, double lng1, double lat2, double lng2) {
+    const R = 6371;
+    final dLat = (lat2 - lat1) * pi / 180;
+    final dLng = (lng2 - lng1) * pi / 180;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * pi / 180) * cos(lat2 * pi / 180) *
+            sin(dLng / 2) * sin(dLng / 2);
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
   double distanceCenterKm(double lat, double lng) {
@@ -152,12 +183,29 @@ class ZoneService {
 
   ZoneInfo? _zoneFromDoc(String docId, Map<String, dynamic> z) {
     final polygon = _extractPolygon(z['boundary']);
+    final municipality = (z['municipality_name'] as String?) ?? '';
+    final known = _knownUrbanCenter(municipality);
     return ZoneInfo(
       id: (z['id'] as String?) ?? docId,
-      municipalityName: z['municipality_name'] ?? '',
+      municipalityName: municipality,
       baseMultiplier: (z['base_multiplier'] as num?)?.toDouble() ?? 1.0,
       polygons: polygon != null ? [polygon] : const [],
+      urbanRadiusKm: (z['urban_radius_km'] as num?)?.toDouble() ?? 2.5,
+      urbanCenterLat:
+          (z['center_lat'] as num?)?.toDouble() ?? known?.$1,
+      urbanCenterLng:
+          (z['center_lng'] as num?)?.toDouble() ?? known?.$2,
     );
+  }
+
+  /// Centros de casco urbano conocidos para municipios donde el centroide del
+  /// polígono no coincide con el pueblo (polígonos con mucha zona rural).
+  static (double, double)? _knownUrbanCenter(String municipality) {
+    final m = municipality.toLowerCase();
+    if (m.contains('el carmen') || m.contains('carmen de bol')) {
+      return (9.7205, -75.1174); // El Carmen de Bolívar, Bolívar
+    }
+    return null;
   }
 
   Future<ZoneInfo?> _findByBoundary(double lat, double lng) async {

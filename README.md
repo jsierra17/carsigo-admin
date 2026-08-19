@@ -12,6 +12,15 @@ Revisa siempre el PRD: Para dudas sobre reglas de negocio (tarifas, comisiones, 
 
 Sigue el Roadmap: No te adelantes a construir características de Fases futuras a menos que el desarrollador (Jose) te lo indique explícitamente.
 
+🔒 ROL DE USUARIO — REGLA INALTERABLE (NO CAMBIAR)
+
+1. Toda persona que abre la app entra SIEMPRE como PASAJERO. Esa es la regla de negocio: NO existe pantalla de elección de rol (pasajero/conductor) al primer ingreso ni en ningún momento del flujo de autenticación.
+2. Al registrarse/entrar con Google, la app crea automáticamente el perfil del usuario con rol `passenger`.
+3. Ser conductor NO se elige en el inicio: el usuario que quiera conducir va a su PERFIL (ícono de persona, pantalla "Mi perfil") y toca "Quiero ser conductor". Allí se pide el formulario completo (tipo de vehículo, placa, etc.) y se crea una solicitud en `driver_applications` con estado `pending`.
+4. El PANEL ADMIN es el único que APRUEBA/RECHAZA esa solicitud; al aprobar, actualiza el rol del usuario a `driver` y crea su `driver_profiles`.
+5. Solo después de esa aprobación el usuario ve la pantalla de conductor en la app. Sin aprobación, siempre usa la experiencia de pasajero.
+6. No se debe reintroducir ningún selector "¿Pasajero o Conductor?" en el flujo inicial. Si lo aparece, es un bug y debe revertirse.
+
 🛠️ Stack Tecnológico
 
 Web Admin: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS.

@@ -111,9 +111,21 @@ service cloud.firestore {
       allow create: if (isSignedIn() && request.resource.data.passenger_id == request.auth.uid &&
         request.resource.data.status == 'pending' &&
         request.resource.data.keys().hasOnly([
-          'passenger_id', 'status', 'pickup', 'dropoff', 'distance_km',
+          'id', 'passenger_id', 'status', 'pickup', 'dropoff',
+          'pickup_address', 'dropoff_address', 'pickup_lat', 'pickup_lng',
+          'dropoff_lat', 'dropoff_lng', 'pickup_location',
+          'distance_km', 'duration_min', 'vehicle_type',
           'fare_amount', 'driver_id', 'created_at', 'passenger_name'
-        ])) || isAdmin();
+        ]) &&
+        request.resource.data.fare_amount is number &&
+        request.resource.data.fare_amount >= 0 &&
+        request.resource.data.distance_km is number &&
+        request.resource.data.distance_km >= 0 &&
+        request.resource.data.pickup_lat is number &&
+        request.resource.data.pickup_lat >= -90 && request.resource.data.pickup_lat <= 90 &&
+        request.resource.data.pickup_lng is number &&
+        request.resource.data.pickup_lng >= -180 && request.resource.data.pickup_lng <= 180 &&
+        request.resource.data.vehicle_type in ['moto', 'car']) || isAdmin();
       allow update: if isAdmin() ||
         (isSignedIn() && resource.data.passenger_id == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&

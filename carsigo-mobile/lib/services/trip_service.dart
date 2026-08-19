@@ -112,6 +112,7 @@ class TripService {
     double? distanceKm,
     double? durationMin,
     String? vehicleType,
+    double? fareAmount,
   }) async {
     final docRef = _trips.doc();
     final data = <String, dynamic>{
@@ -128,6 +129,7 @@ class TripService {
       'distance_km': distanceKm ?? 0,
       'duration_min': durationMin ?? 0,
       'vehicle_type': vehicleType ?? 'moto',
+      'fare_amount': fareAmount ?? 0,
       'created_at': Timestamp.now(),
     };
     await docRef.set(data);

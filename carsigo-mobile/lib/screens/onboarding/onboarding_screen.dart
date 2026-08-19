@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../auth/login_screen.dart';
 import '../../services/preferences_service.dart';
 import '../../theme/carsigo_theme.dart';
@@ -72,10 +73,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPressed: _goToLogin,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  minimumSize: const Size(48, 44),
+                  minimumSize: const Size(48, 48),
                   foregroundColor: _textMuted,
                 ),
-                child: const Text('Omitir', style: TextStyle(fontSize: 14)),
+                child: const Text('Omitir', style: TextStyle(fontFamily: 'Outfit', fontSize: 14, fontWeight: FontWeight.w500)),
               ),
             ),
             Positioned(
@@ -99,8 +100,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         textStyle: const TextStyle(
+                          fontFamily: 'Outfit',
                           fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
                         ),
                       ),
                       child: Text(_currentPage < 2 ? 'Siguiente' : 'Comenzar'),
@@ -127,18 +130,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 0:
         return _OnboardingPage(
           title: 'Bienvenido a CarSiGo',
-          subtitle: 'Tu aplicación de movilidad\nen El Carmen de Bolívar',
+          subtitle: 'Tu aplicación de movilidad\nen cualquier ciudad',
           description:
               'Viajes rápidos, seguros y al mejor precio\nen moto o carro.',
-          child: _imagePlaceholder('assets/sub-logo.png', Icons.home),
+          illustration: 'assets/Bienvenida.svg',
         );
       case 1:
         return _OnboardingPage(
           title: 'Seguridad ante todo',
           subtitle: 'Viajes monitoreados\nen tiempo real',
           description:
-              'Conductores verificados, GPS en vivo\ny soporte 24/7 para tu tranquilidad.',
-          child: _imagePlaceholder('assets/security.png', Icons.shield),
+              'Conductores verificados, GPS en vivo\ny soporte 24/7, dondequiera que estés.',
+          illustration: 'assets/Seguridad.svg',
         );
       case 2:
         return _OnboardingPage(
@@ -146,33 +149,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           subtitle: 'El mejor servicio\nal alcance de tu mano',
           description:
               'Solicita tu viaje en segundos,\nconoce el costo antes de pedirlo\ny paga en efectivo o desde la app.',
-          child: _imagePlaceholder('assets/viajes.png', Icons.star),
+          illustration: 'assets/GPS.svg',
         );
       default:
         return const SizedBox();
     }
-  }
-
-  Widget _imagePlaceholder(String asset, IconData fallback) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Image.asset(
-        asset,
-        width: 280,
-        height: 220,
-        fit: BoxFit.contain,
-        errorBuilder: (c, e, s) => Container(
-          width: 280,
-          height: 220,
-          decoration: BoxDecoration(
-            color: _surfaceLight,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _border, width: 2),
-          ),
-          child: Icon(fallback, size: 64, color: _cyan),
-        ),
-      ),
-    );
   }
 }
 
@@ -180,57 +161,91 @@ class _OnboardingPage extends StatelessWidget {
   final String title;
   final String subtitle;
   final String description;
-  final Widget child;
+  final String illustration;
   const _OnboardingPage({
     required this.title,
     required this.subtitle,
     required this.description,
-    required this.child,
+    required this.illustration,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          child,
-          const SizedBox(height: 32),
-          Text(
-            title,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: _textPrimary,
+    return Column(
+      children: [
+        // Ilustración completa (sin recortes) en la parte superior.
+        Expanded(
+          flex: 11,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+            child: Center(
+              child: SvgPicture.asset(
+                illustration,
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (c, e, s) => Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    color: _surfaceLight,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.image_not_supported_outlined, size: 56, color: _cyan),
+                  ),
+                ),
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _cyan,
-            ),
-            textAlign: TextAlign.center,
+        ),
+        // Texto sobre el fondo sólido de la app: legible y sin parches.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 12, 32, 176),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 29,
+                  fontWeight: FontWeight.w900,
+                  color: _textPrimary,
+                  height: 1.2,
+                  letterSpacing: -0.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: _cyan,
+                  height: 1.4,
+                  letterSpacing: 0.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                description,
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: _textSecondary.withValues(alpha: 0.95),
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            description,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              color: _textSecondary,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

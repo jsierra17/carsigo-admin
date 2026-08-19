@@ -14,7 +14,7 @@ abstract final class CarSiGoColors {
   static const Color orange = Color(0xFFF59E0B);
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFF94949E);
-  static const Color textMuted = Color(0xFF52525B);
+  static const Color textMuted = Color(0xFF767680);
 }
 
 ThemeData buildCarSiGoTheme() {
