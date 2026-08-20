@@ -4,14 +4,30 @@ import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
-export async function getDynamicPricingRules() {
+// Todo en UNA llamada: reglas + zonas disponibles para el selector.
+export async function getPricingData() {
+  if (!(await checkIsSuperAdmin())) return { rules: [], geofences: [] }
+  const db = createAdminClient()
+  const [rulesRes, fencesRes] = await Promise.all([
+    db.from('dynamic_pricing_rules').select('*').order('priority', { ascending: false }),
+    db
+      .from('geofences')
+      .select('id, municipality_name')
+      .eq('is_active', true)
+      .order('municipality_name'),
+  ])
+  return { rules: rulesRes.data || [], geofences: fencesRes.data || [] }
+}
+
+export async function getDynamicPricingRules(zoneId?: string) {
   if (!(await checkIsSuperAdmin())) return []
   const db = createAdminClient()
   const { data } = await db
     .from('dynamic_pricing_rules')
     .select('*')
     .order('priority', { ascending: false })
-  return data || []
+  if (!zoneId) return data || []
+  return (data || []).filter((r: { zone_id?: string | null }) => r.zone_id === zoneId)
 }
 
 export async function createDynamicPricingRule(payload: {
@@ -30,6 +46,7 @@ export async function createDynamicPricingRule(payload: {
   geofence_id?: string | null
   vehicle_type?: string | null
   priority?: number
+  zone_id?: string | null
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
   const db = createAdminClient()
@@ -55,6 +72,7 @@ export async function updateDynamicPricingRule(id: string, payload: Partial<{
   geofence_id: string | null
   is_active: boolean
   priority: number
+  zone_id: string | null
 }>) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
   const db = createAdminClient()

@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
-export async function getRateSchedules() {
+export async function getRateSchedules(zoneId?: string) {
   if (!(await checkIsSuperAdmin())) return []
   const db = createAdminClient()
   const { data } = await db
@@ -13,7 +13,8 @@ export async function getRateSchedules() {
     .order('vehicle_type')
     .order('day_type')
     .order('shift_start')
-  return data || []
+  if (!zoneId) return data || []
+  return (data || []).filter((s: { zone_id?: string | null }) => s.zone_id === zoneId)
 }
 
 export async function createRateSchedule(payload: {
@@ -25,6 +26,7 @@ export async function createRateSchedule(payload: {
   shift_end: string
   base_fee: number
   hourly_increase_percent: number
+  zone_id: string
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
   const db = createAdminClient()
@@ -43,6 +45,7 @@ export async function updateRateSchedule(id: string, payload: Partial<{
   shift_end: string
   base_fee: number
   hourly_increase_percent: number
+  zone_id: string
   is_active: boolean
 }>) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }

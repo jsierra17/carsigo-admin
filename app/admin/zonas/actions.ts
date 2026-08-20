@@ -29,9 +29,10 @@ export async function createGeofence(payload: { municipality_name: string, bound
     throw new Error(`La zona "${payload.municipality_name.trim()}" ya está habilitada. No se permiten zonas duplicadas.`);
   }
 
-  const { error } = await db.from('geofences').insert([payload]);
+  const { data, error } = await db.from('geofences').insert([payload]);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/zonas');
+  return data?.id ?? null;
 }
 
 export async function deleteGeofence(id: string) {

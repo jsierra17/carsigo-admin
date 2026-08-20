@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Tag, Clock, Plus, Pencil, Trash2, Loader2, Car, Bike, Sun, Moon, Calendar, ArrowUp } from 'lucide-react'
-import { getRateCards, createRateCard, updateRateCard, deleteRateCard } from './actions'
-import { getRateSchedules, createRateSchedule, updateRateSchedule, deleteRateSchedule } from './schedules-actions'
+import { Tag, Clock, Plus, Pencil, Trash2, Loader2, Car, Bike, Sun, Moon, Calendar, ArrowUp, Copy, ArrowRightLeft } from 'lucide-react'
+import { createRateCard, updateRateCard, deleteRateCard } from './actions'
+import { createRateSchedule, updateRateSchedule, deleteRateSchedule } from './schedules-actions'
+import { copyZonePricing, migrateLegacyPricingToZone, getTarifasData } from './zone-actions'
 import { useToast } from '@/contexts/ToastContext'
 
 type RateCard = {
@@ -11,15 +12,17 @@ type RateCard = {
   price_per_km: number; price_per_minute: number; minimum_fare: number
   free_waiting_minutes: number; waiting_price_per_minute: number
   commission_percent: number; included_km: number; extra_km_percent: number
-  is_active: boolean; created_at: string
+  is_active: boolean; created_at: string; zone_id?: string | null
 }
 
 type RateSchedule = {
   id: string; name: string; vehicle_type: string; day_type: string
   shift_label: string; shift_start: string; shift_end: string
   base_fee: number; hourly_increase_percent: number
-  is_active: boolean; created_at: string
+  is_active: boolean; created_at: string; zone_id?: string | null
 }
+
+type ZoneOption = { id: string; municipality_name: string; is_active: boolean }
 
 const dayTypeLabels: Record<string, string> = {
   weekday: 'Lun-Vie', weekend: 'Sáb-Dom', special: 'Festivo',
@@ -55,10 +58,29 @@ export default function TarifasPage() {
   const [cardForm, setCardForm] = useState(defaultCardForm)
   const [scheduleForm, setScheduleForm] = useState(defaultScheduleForm)
   const [isSaving, setIsSaving] = useState(false)
+  const [zones, setZones] = useState<ZoneOption[]>([])
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null)
+  const [copySourceZoneId, setCopySourceZoneId] = useState<string>('')
+  const [isCopying, setIsCopying] = useState(false)
+  const [isMigrating, setIsMigrating] = useState(false)
+
+  const zoneCards = selectedZoneId
+    ? cards.filter(c => c.zone_id === selectedZoneId)
+    : cards
+  const zoneSchedules = selectedZoneId
+    ? schedules.filter(s => s.zone_id === selectedZoneId)
+    : schedules
+  const hasLegacyPricing = cards.some(c => !c.zone_id) || schedules.some(s => !s.zone_id)
+  const selectedZone = zones.find(z => z.id === selectedZoneId)
 
   const load = () => {
-    Promise.all([getRateCards(), getRateSchedules()]).then(([c, s]) => {
-      setCards(c); setSchedules(s); setIsLoading(false)
+    getTarifasData().then(({ cards: c, schedules: s, zones: z, defaultZoneId }) => {
+      setCards(c); setSchedules(s); setZones(z)
+      setSelectedZoneId(prev => {
+        if (prev && z.some((zone: ZoneOption) => zone.id === prev)) return prev
+        return defaultZoneId
+      })
+      setIsLoading(false)
     })
   }
 
@@ -66,7 +88,8 @@ export default function TarifasPage() {
 
   const handleSaveCard = async (e: React.FormEvent) => {
     e.preventDefault(); setIsSaving(true)
-    const payload = { ...cardForm }
+    if (!selectedZoneId) { toast.error('Selecciona una zona'); setIsSaving(false); return }
+    const payload = { ...cardForm, zone_id: selectedZoneId }
     if (editingCardId) {
       const res = await updateRateCard(editingCardId, payload)
       if (res.success) toast.success('Tarifa actualizada')
@@ -101,7 +124,8 @@ export default function TarifasPage() {
 
   const handleSaveSchedule = async (e: React.FormEvent) => {
     e.preventDefault(); setIsSaving(true)
-    const payload = { ...scheduleForm }
+    if (!selectedZoneId) { toast.error('Selecciona una zona'); setIsSaving(false); return }
+    const payload = { ...scheduleForm, zone_id: selectedZoneId }
     if (editingScheduleId) {
       const res = await updateRateSchedule(editingScheduleId, payload)
       if (res.success) toast.success('Horario actualizado')
@@ -133,7 +157,35 @@ export default function TarifasPage() {
   }
 
   const groupSchedules = (vehicleType: string) =>
-    schedules.filter(s => s.vehicle_type === vehicleType && s.is_active)
+    zoneSchedules.filter(s => s.vehicle_type === vehicleType && s.is_active)
+
+  const handleCopyPricing = async () => {
+    if (!selectedZoneId || !copySourceZoneId || copySourceZoneId === selectedZoneId) return
+    if (!confirm('¿Copiar las tarifas de la zona seleccionada a la zona actual? Las tarifas existentes no se modifican.')) return
+    setIsCopying(true)
+    try {
+      const res = await copyZonePricing(copySourceZoneId, selectedZoneId)
+      if ('error' in res) { toast.error(res.error); return }
+      toast.success(`Configuración copiada (${res.cards} tarifas, ${res.schedules} horarios)`)
+      load()
+    } finally {
+      setIsCopying(false)
+    }
+  }
+
+  const handleMigrateLegacy = async () => {
+    if (!selectedZoneId) return
+    if (!confirm(`¿Asociar la configuración actual (sin zona) a "${selectedZone?.municipality_name || 'esta zona'}"? Se etiquetarán tarifas, horarios y reglas dinámicas existentes.`)) return
+    setIsMigrating(true)
+    try {
+      const res = await migrateLegacyPricingToZone(selectedZoneId)
+      if ('error' in res) { toast.error(res.error); return }
+      toast.success(`Migradas: ${res.counts.rate_cards} tarifas, ${res.counts.rate_schedules} horarios, ${res.counts.dynamic_pricing_rules} reglas`)
+      load()
+    } finally {
+      setIsMigrating(false)
+    }
+  }
 
   if (isLoading) return (
     <div className="max-w-7xl mx-auto p-20 flex justify-center">
@@ -152,6 +204,51 @@ export default function TarifasPage() {
           <h1 className="text-3xl font-black text-white tracking-tighter">Tarifas</h1>
         </div>
         <p className="text-slate-400 font-medium">Configuración del modelo de tarifa progresiva por hora.</p>
+      </div>
+
+      {/* Zona Selector */}
+      <div className="bg-[#141416] border border-white/5 rounded-3xl p-5 shadow-sm flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex-1">
+          <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Zona</label>
+          <select value={selectedZoneId || ''} onChange={e => setSelectedZoneId(e.target.value || null)}
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
+            {zones.length === 0 && <option value="">Sin zonas habilitadas</option>}
+            {zones.map(z => (
+              <option key={z.id} value={z.id}>
+                {z.municipality_name}{z.is_active ? '' : ' (inactiva)'}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            {selectedZoneId
+              ? `Mostrando la configuración de "${selectedZone?.municipality_name}".`
+              : 'Sin zona seleccionada: mostrando la configuración existente (sin zona).'}
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <div>
+            <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Copiar de zona</label>
+            <select value={copySourceZoneId} onChange={e => setCopySourceZoneId(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
+              <option value="">Seleccionar...</option>
+              {zones.filter(z => z.id !== selectedZoneId).map(z => (
+                <option key={z.id} value={z.id}>{z.municipality_name}</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={handleCopyPricing} disabled={isCopying || !selectedZoneId || !copySourceZoneId || copySourceZoneId === selectedZoneId}
+            className="px-6 py-3 bg-[#00E5FF]/10 hover:bg-[#00E5FF]/20 text-[#00E5FF] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#00E5FF]/60">
+            {isCopying ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
+            Copiar Tarifas
+          </button>
+          {hasLegacyPricing && selectedZoneId && (
+            <button onClick={handleMigrateLegacy} disabled={isMigrating}
+              className="px-6 py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-amber-400/60">
+              {isMigrating ? <Loader2 size={14} className="animate-spin" /> : <ArrowRightLeft size={14} />}
+              Migrar Config Existente
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Rate Cards Section */}
@@ -380,7 +477,7 @@ export default function TarifasPage() {
   )
 
   function renderVehicleConfig(vehicleType: string) {
-    const card = cards.find(c => c.vehicle_type === vehicleType)
+    const card = zoneCards.find(c => c.vehicle_type === vehicleType)
     if (!card) return (
       <div className="p-6 text-center text-sm text-slate-500">
         Sin tarifa configurada.

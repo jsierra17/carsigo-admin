@@ -8,6 +8,7 @@ export interface PricingInput {
   distance_km: number
   duration_min: number
   datetime?: Date
+  zone_id?: string
 }
 
 export interface PricingBreakdown {
@@ -66,35 +67,81 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
   const dayType = getDayType(dt)
   const currentTime = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
 
-  const { data: schedules } = await db
-    .from('rate_schedules')
-    .select('*')
-    .eq('vehicle_type', input.vehicle_type)
-    .eq('day_type', dayType)
-    .eq('is_active', true)
+  const { data: schedules } = input.zone_id
+    ? await db
+        .from('rate_schedules')
+        .select('*')
+        .eq('zone_id', input.zone_id)
+        .eq('vehicle_type', input.vehicle_type)
+        .eq('day_type', dayType)
+        .eq('is_active', true)
+    : await db
+        .from('rate_schedules')
+        .select('*')
+        .eq('vehicle_type', input.vehicle_type)
+        .eq('day_type', dayType)
+        .eq('is_active', true)
 
-  const schedule = ((schedules || []) as Array<{
+  let zoneSchedules = (schedules || []) as Array<{
       shift_start: string
       shift_end: string
-      day_type: string
+      day_type: DayType
       shift_label: string
       base_fee: number
       hourly_increase_percent: number
-    }>).find(s => {
+    }>
+
+  if (zoneSchedules.length === 0 && input.zone_id) {
+    const { data: legacy } = await db
+      .from('rate_schedules')
+      .select('*')
+      .eq('vehicle_type', input.vehicle_type)
+      .eq('day_type', dayType)
+      .eq('is_active', true)
+    zoneSchedules = (legacy || []) as typeof zoneSchedules
+  }
+
+  const schedule = zoneSchedules.find(s => {
     if (s.shift_end <= s.shift_start) {
       return currentTime >= s.shift_start || currentTime < s.shift_end
     }
     return currentTime >= s.shift_start && currentTime < s.shift_end
-  }) || (schedules || [])[0]
+  }) || zoneSchedules[0]
 
-  const { data: cards } = await db
-    .from('rate_cards')
-    .select('*')
-    .eq('vehicle_type', input.vehicle_type)
-    .eq('is_active', true)
-    .limit(1)
+  const { data: cards } = input.zone_id
+    ? await db
+        .from('rate_cards')
+        .select('*')
+        .eq('zone_id', input.zone_id)
+        .eq('vehicle_type', input.vehicle_type)
+        .eq('is_active', true)
+        .limit(1)
+    : await db
+        .from('rate_cards')
+        .select('*')
+        .eq('vehicle_type', input.vehicle_type)
+        .eq('is_active', true)
+        .limit(1)
 
-  const card = (cards || [])[0]
+  let zoneCards = (cards || []) as Array<{
+      minimum_fare: number
+      commission_percent: number
+      included_km: number
+      extra_km_percent: number
+      base_fee: number
+    }>
+
+  if (zoneCards.length === 0 && input.zone_id) {
+    const { data: legacy } = await db
+      .from('rate_cards')
+      .select('*')
+      .eq('vehicle_type', input.vehicle_type)
+      .eq('is_active', true)
+      .limit(1)
+    zoneCards = (legacy || []) as typeof zoneCards
+  }
+
+  const card = zoneCards[0]
 
   const hoursSince = schedule
     ? getHoursSince(schedule.shift_start, schedule.shift_end, dt)
@@ -110,18 +157,24 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
 
   let subtotal = currentBaseFee + extraKmCharge
 
-  const { data: rules } = await db
-    .from('dynamic_pricing_rules')
-    .select('*')
-    .eq('is_active', true)
-    .or(`vehicle_type.eq.${input.vehicle_type},vehicle_type.is.null`)
-    .gte('priority', 0)
-    .order('priority', { ascending: false })
+  const { data: rules } = input.zone_id
+    ? await db
+        .from('dynamic_pricing_rules')
+        .select('*')
+        .in('zone_id', [input.zone_id, null])
+        .eq('is_active', true)
+        .or(`vehicle_type.eq.${input.vehicle_type},vehicle_type.is.null`)
+        .gte('priority', 0)
+        .order('priority', { ascending: false })
+    : await db
+        .from('dynamic_pricing_rules')
+        .select('*')
+        .eq('is_active', true)
+        .or(`vehicle_type.eq.${input.vehicle_type},vehicle_type.is.null`)
+        .gte('priority', 0)
+        .order('priority', { ascending: false })
 
-  let dynamicMultiplier = 1.0
-  let dynamicRuleName: string | null = null
-
-  const matchingRule = ((rules || []) as Array<{
+  let zoneRules = (rules || []) as Array<{
       rule_type: string
       is_recurring?: boolean
       specific_date?: string
@@ -133,7 +186,23 @@ export async function calculateFare(input: PricingInput): Promise<PricingBreakdo
       multiplier: number
       name: string
       vehicle_type?: string | null
-    }>).find(r => {
+    }>
+
+  if (zoneRules.length === 0 && input.zone_id) {
+    const { data: legacy } = await db
+      .from('dynamic_pricing_rules')
+      .select('*')
+      .eq('is_active', true)
+      .or(`vehicle_type.eq.${input.vehicle_type},vehicle_type.is.null`)
+      .gte('priority', 0)
+      .order('priority', { ascending: false })
+    zoneRules = (legacy || []) as typeof zoneRules
+  }
+
+  let dynamicMultiplier = 1.0
+  let dynamicRuleName: string | null = null
+
+  const matchingRule = zoneRules.find(r => {
     if (r.rule_type === 'specific_date' && r.is_recurring) {
       const ruleDate = new Date(r.specific_date!)
       if (ruleDate.getMonth() !== undefined && ruleDate.getDate() !== undefined) {

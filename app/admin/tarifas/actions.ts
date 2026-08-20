@@ -4,14 +4,15 @@ import { createAdminClient } from '@/lib/firebase/service'
 import { revalidatePath } from 'next/cache'
 import { checkIsSuperAdmin } from '@/lib/auth'
 
-export async function getRateCards() {
+export async function getRateCards(zoneId?: string) {
   if (!(await checkIsSuperAdmin())) return []
   const db = createAdminClient()
   const { data } = await db
     .from('rate_cards')
     .select('*')
     .order('created_at', { ascending: false })
-  return data || []
+  if (!zoneId) return data || []
+  return (data || []).filter((c: { zone_id?: string | null }) => c.zone_id === zoneId)
 }
 
 export async function createRateCard(payload: {
@@ -24,6 +25,7 @@ export async function createRateCard(payload: {
   free_waiting_minutes: number
   waiting_price_per_minute: number
   commission_percent: number
+  zone_id: string
 }) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }
   const db = createAdminClient()
@@ -43,6 +45,7 @@ export async function updateRateCard(id: string, payload: Partial<{
   free_waiting_minutes: number
   waiting_price_per_minute: number
   commission_percent: number
+  zone_id: string
   is_active: boolean
 }>) {
   if (!(await checkIsSuperAdmin())) return { error: 'Acceso Denegado' }

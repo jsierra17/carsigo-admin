@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
 import '../../services/location_service.dart';
 import '../../services/pricing_engine.dart';
+import '../../services/zone_service.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/trip.dart';
 import '../profile_screen.dart';
@@ -120,7 +121,16 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     if (trip.distanceKm <= 0) return null;
     try {
       final vehicleType = trip.vehicleType == 'car' ? VehicleType.car : VehicleType.moto;
-      return await _engine.calculateFare(vehicleType: vehicleType, distanceKm: trip.distanceKm);
+      String? zoneId;
+      if (trip.pickupLat != 0 || trip.pickupLng != 0) {
+        final zone = await ZoneService().findActiveZone(trip.pickupLat, trip.pickupLng);
+        zoneId = zone?.id;
+      }
+      return await _engine.calculateFare(
+        vehicleType: vehicleType,
+        distanceKm: trip.distanceKm,
+        zoneId: zoneId,
+      );
     } catch (_) {
       return null;
     }

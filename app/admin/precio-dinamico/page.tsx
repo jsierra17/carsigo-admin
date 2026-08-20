@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Zap, Plus, Pencil, Trash2, Loader2, Calendar, Clock, MapPin } from 'lucide-react'
-import { getDynamicPricingRules, createDynamicPricingRule, updateDynamicPricingRule, deleteDynamicPricingRule, getGeofences } from './actions'
+import { getPricingData, createDynamicPricingRule, updateDynamicPricingRule, deleteDynamicPricingRule } from './actions'
 import { useToast } from '@/contexts/ToastContext'
 
 type Rule = {
@@ -24,6 +24,7 @@ type Rule = {
   is_active: boolean
   priority: number
   created_at: string
+  zone_id?: string | null
 }
 
 type Geofence = { id: string; municipality_name: string }
@@ -66,9 +67,14 @@ export default function PrecioDinamicoPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(defaultForm)
   const [isSaving, setIsSaving] = useState(false)
+  const [selectedZoneId, setSelectedZoneId] = useState('all')
+
+  const visibleRules = selectedZoneId === 'all'
+    ? rules.filter(r => !r.zone_id)
+    : rules.filter(r => r.zone_id === selectedZoneId)
 
   const load = () => {
-    Promise.all([getDynamicPricingRules(), getGeofences()]).then(([data, fences]) => {
+    getPricingData().then(({ rules: data, geofences: fences }) => {
       setRules(data); setGeofences(fences); setIsLoading(false)
     })
   }
@@ -97,6 +103,7 @@ export default function PrecioDinamicoPage() {
       geofence_id: form.geofence_id || null,
       vehicle_type: form.vehicle_type || null,
       is_recurring: form.is_recurring,
+      zone_id: selectedZoneId === 'all' ? null : selectedZoneId,
     }
     if (form.rule_type === 'time_range') {
       payload.start_time = form.start_time || null
@@ -224,6 +231,25 @@ export default function PrecioDinamicoPage() {
             <Plus size={14} /> Nueva Regla
           </button>
         )}
+      </div>
+
+      {/* Zona Selector */}
+      <div className="bg-[#141416] border border-white/5 rounded-3xl p-5 shadow-sm flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex-1">
+          <label className="text-xs text-slate-500 font-black uppercase tracking-widest block mb-2">Aplicar a</label>
+          <select value={selectedZoneId} onChange={e => setSelectedZoneId(e.target.value)}
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-[#00E5FF]/40 focus:border-[#00E5FF]/40">
+            <option value="all">Todas las zonas (global)</option>
+            {geofences.map(z => (
+              <option key={z.id} value={z.id}>{z.municipality_name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            {selectedZoneId === 'all'
+              ? 'La regla aplica a todas las zonas. Las reglas por zona se configuran seleccionando la zona.'
+              : `Mostrando y creando reglas solo para ${geofences.find(z => z.id === selectedZoneId)?.municipality_name || 'esta zona'}.`}
+          </p>
+        </div>
       </div>
 
       {showForm && (
@@ -377,12 +403,12 @@ export default function PrecioDinamicoPage() {
             <Zap size={20} className="text-purple-400" />
             Reglas de Precio Dinámico
           </h3>
-          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-full border border-purple-500/20">{rules.length}</span>
+          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 text-[10px] font-black rounded-full border border-purple-500/20">{visibleRules.length}</span>
         </div>
 
         {isLoading ? (
           <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-purple-400" size={40} /></div>
-        ) : rules.length === 0 ? (
+        ) : visibleRules.length === 0 ? (
           <div className="p-20 text-center">
             <Zap className="mx-auto mb-4 text-slate-500 opacity-20" size={40} />
             <h4 className="text-lg font-black text-slate-500 uppercase tracking-tighter">Sin reglas configuradas</h4>
@@ -404,7 +430,7 @@ export default function PrecioDinamicoPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {rules.map(rule => (
+                {visibleRules.map(rule => (
                   <tr key={rule.id} className="hover:bg-[#00E5FF]/5 transition-colors">
                     <td className="px-6 py-5">
                       <p className="font-bold text-white text-sm">{rule.name}</p>

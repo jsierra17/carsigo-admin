@@ -59,9 +59,37 @@
       ]
     },
     {
+      "collectionGroup": "rate_cards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "zone_id", "order": "ASCENDING" },
+        { "fieldPath": "vehicle_type", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rate_schedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "zone_id", "order": "ASCENDING" },
+        { "fieldPath": "vehicle_type", "order": "ASCENDING" },
+        { "fieldPath": "day_type", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "dynamic_pricing_rules",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "priority", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dynamic_pricing_rules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "zone_id", "order": "ASCENDING" },
         { "fieldPath": "is_active", "order": "ASCENDING" },
         { "fieldPath": "priority", "order": "DESCENDING" }
       ]

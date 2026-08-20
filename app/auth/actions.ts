@@ -96,7 +96,7 @@ export async function exchangeTokenForSession(idToken: string) {
     const admin = getFirebaseAdmin()
     const decoded = await admin.auth.verifyIdToken(idToken)
     const sessionCookie = await admin.auth.createSessionCookie(idToken, {
-      expiresIn: 14 * 24 * 60 * 60 * 1000,
+      expiresIn: 24 * 60 * 60 * 1000,
     })
 
     let role: string | null = null
@@ -126,7 +126,6 @@ export async function exchangeTokenForSession(idToken: string) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
-      maxAge: 14 * 24 * 60 * 60,
     }
     cookieStore.set(SESSION_COOKIE, sessionCookie, opts)
     cookieStore.set(ROLE_COOKIE, role || '', opts)

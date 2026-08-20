@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const { passenger_id, vehicle_type, pickup_address, dropoff_address,
-      pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_km, duration_min } = body
+      pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_km, duration_min, zone_id } = body
 
     if (!passenger_id || !vehicle_type || !pickup_address || !dropoff_address) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     const db = createAdminClient()
 
-    const fare = await calculateFare({ vehicle_type, distance_km: distance_km || 0, duration_min: duration_min || 0 })
+    const fare = await calculateFare({ vehicle_type, distance_km: distance_km || 0, duration_min: duration_min || 0, zone_id: typeof zone_id === 'string' && zone_id ? zone_id : undefined })
 
     const { data: trip, error } = await db
       .from('trips')

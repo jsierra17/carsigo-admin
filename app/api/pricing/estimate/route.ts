@@ -4,7 +4,7 @@ import { calculateFare } from '@/lib/pricing-engine'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { vehicle_type, distance_km, duration_min, datetime } = body
+    const { vehicle_type, distance_km, duration_min, datetime, zone_id } = body
 
     if (!vehicle_type || !['moto', 'car'].includes(vehicle_type)) {
       return NextResponse.json({ error: 'vehicle_type debe ser "moto" o "car"' }, { status: 400 })
@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       distance_km,
       duration_min: duration_min || 0,
       datetime: datetime ? new Date(datetime) : undefined,
+      zone_id: typeof zone_id === 'string' && zone_id ? zone_id : undefined,
     })
 
     return NextResponse.json(breakdown)

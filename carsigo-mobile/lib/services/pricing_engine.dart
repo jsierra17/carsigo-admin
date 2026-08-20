@@ -85,15 +85,81 @@ String _currentTimeStr(DateTime dt) =>
 class PricingEngine {
   final _firestore = FirebaseFirestore.instance;
 
+  Future<List<Map<String, dynamic>>> _fetchSchedules(
+    String? zoneId,
+    String vehicleStr,
+    String dayStr,
+  ) async {
+    final base = _firestore
+        .collection('rate_schedules')
+        .where('vehicle_type', isEqualTo: vehicleStr)
+        .where('day_type', isEqualTo: dayStr)
+        .where('is_active', isEqualTo: true);
+    if (zoneId != null) {
+      final zoneSnap = await base
+          .where('zone_id', isEqualTo: zoneId)
+          .get();
+      if (zoneSnap.docs.isNotEmpty) {
+        return zoneSnap.docs.map((d) => d.data()).toList();
+      }
+    }
+    final snap = await base.get();
+    return snap.docs.map((d) => d.data()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchCards(String? zoneId, String vehicleStr) async {
+    final base = _firestore
+        .collection('rate_cards')
+        .where('vehicle_type', isEqualTo: vehicleStr)
+        .where('is_active', isEqualTo: true)
+        .limit(1);
+    if (zoneId != null) {
+      final zoneSnap = await base
+          .where('zone_id', isEqualTo: zoneId)
+          .get();
+      if (zoneSnap.docs.isNotEmpty) {
+        return zoneSnap.docs.map((d) => d.data()).toList();
+      }
+    }
+    final snap = await base.get();
+    return snap.docs.map((d) => d.data()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRules(String? zoneId) async {
+    // Reglas de la zona; si la zona no tiene, se usan las globales (zone_id
+    // explícitamente null). NO se usa whereIn con null: aunque el servidor lo
+    // acepta, algunos SDK lo rechazan; dos consultas son equivalentes.
+    if (zoneId != null) {
+      final zoneSnap = await _firestore
+          .collection('dynamic_pricing_rules')
+          .where('zone_id', isEqualTo: zoneId)
+          .where('is_active', isEqualTo: true)
+          .orderBy('priority', descending: true)
+          .get();
+      if (zoneSnap.docs.isNotEmpty) {
+        return zoneSnap.docs.map((d) => d.data()).toList();
+      }
+    }
+    final globalSnap = await _firestore
+        .collection('dynamic_pricing_rules')
+        .where('zone_id', isEqualTo: null)
+        .where('is_active', isEqualTo: true)
+        .orderBy('priority', descending: true)
+        .get();
+    return globalSnap.docs.map((d) => d.data()).toList();
+  }
+
   Future<PricingBreakdown> calculateFare({
     required VehicleType vehicleType,
     required double distanceKm,
     double durationMin = 0,
     DateTime? datetime,
+    String? zoneId,
   }) async {
     final dt = datetime ?? DateTime.now();
     final dayType = _getDayType(dt);
-    final currentTime = _currentTimeStr(dt);
+    // Con segundos para comparar correctamente contra horarios "HH:MM:SS".
+    final currentTime = _currentTimeStr(dt) + ':00';
     final vehicleStr = vehicleType == VehicleType.moto ? 'moto' : 'car';
     final dayStr = dayType == DayType.weekday
         ? 'weekday'
@@ -101,14 +167,7 @@ class PricingEngine {
             ? 'weekend'
             : 'special';
 
-    final schedulesSnap = await _firestore
-        .collection('rate_schedules')
-        .where('vehicle_type', isEqualTo: vehicleStr)
-        .where('day_type', isEqualTo: dayStr)
-        .where('is_active', isEqualTo: true)
-        .get();
-
-    final schedules = schedulesSnap.docs.map((d) => d.data()).toList();
+    final schedules = await _fetchSchedules(zoneId, vehicleStr, dayStr);
 
     Map<String, dynamic>? schedule;
     for (final s in schedules) {
@@ -128,14 +187,7 @@ class PricingEngine {
     }
     schedule ??= schedules.isNotEmpty ? schedules[0] : null;
 
-    final cardsSnap = await _firestore
-        .collection('rate_cards')
-        .where('vehicle_type', isEqualTo: vehicleStr)
-        .where('is_active', isEqualTo: true)
-        .limit(1)
-        .get();
-
-    final cards = cardsSnap.docs.map((d) => d.data()).toList();
+    final cards = await _fetchCards(zoneId, vehicleStr);
     final card = cards.isNotEmpty ? cards[0] : null;
 
     final hoursSince = schedule != null
@@ -156,14 +208,7 @@ class PricingEngine {
 
     double subtotal = currentBaseFee + extraKmCharge;
 
-    final rulesSnap = await _firestore
-        .collection('dynamic_pricing_rules')
-        .where('is_active', isEqualTo: true)
-        .orderBy('priority', descending: true)
-        .get();
-
-    final rules = rulesSnap.docs
-        .map((d) => d.data())
+    final rules = (await _fetchRules(zoneId))
         .where((r) =>
             r['vehicle_type'] == null ||
             r['vehicle_type'] == vehicleStr)
@@ -174,32 +219,37 @@ class PricingEngine {
 
     for (final r in rules) {
       bool matches = false;
-      final ruleType = r['rule_type'] as String?;
+      try {
+        final ruleType = r['rule_type'] as String?;
 
-      if (ruleType == 'specific_date' && r['is_recurring'] == true) {
-        final ruleDate = DateTime.parse(r['specific_date'] as String);
-        if (dt.month == ruleDate.month && dt.day == ruleDate.day) {
-          matches = true;
+        if (ruleType == 'specific_date' && (r['is_recurring'] as bool? ?? true)) {
+          final ruleDate = DateTime.parse(r['specific_date'] as String);
+          if (dt.month == ruleDate.month && dt.day == ruleDate.day) {
+            matches = true;
+          }
+        } else if (ruleType == 'date_range') {
+          final from = r['date_from'] != null ? DateTime.parse(r['date_from'] as String) : null;
+          final to = r['date_to'] != null ? DateTime.parse(r['date_to'] as String) : null;
+          if (from != null && to != null && dt.isAfter(from.subtract(const Duration(days: 1))) && dt.isBefore(to.add(const Duration(days: 1)))) {
+            matches = true;
+          }
+        } else if (ruleType == 'day_of_week') {
+          final days = (r['days_of_week'] as List?)?.cast<int>() ?? [];
+          final dayNum = dt.weekday == 7 ? 7 : dt.weekday;
+          if (days.contains(dayNum)) matches = true;
+        } else if (ruleType == 'time_range') {
+          final days = (r['days_of_week'] as List?)?.cast<int>() ?? [];
+          final dayNum = dt.weekday == 7 ? 7 : dt.weekday;
+          if (!days.contains(dayNum)) continue;
+          final startTime = (r['start_time'] as String).substring(0, 5);
+          final endTime = (r['end_time'] as String).substring(0, 5);
+          if (currentTime.compareTo(startTime) >= 0 && currentTime.compareTo(endTime) < 0) {
+            matches = true;
+          }
         }
-      } else if (ruleType == 'date_range') {
-        final from = r['date_from'] != null ? DateTime.parse(r['date_from'] as String) : null;
-        final to = r['date_to'] != null ? DateTime.parse(r['date_to'] as String) : null;
-        if (from != null && to != null && dt.isAfter(from.subtract(const Duration(days: 1))) && dt.isBefore(to.add(const Duration(days: 1)))) {
-          matches = true;
-        }
-      } else if (ruleType == 'day_of_week') {
-        final days = (r['days_of_week'] as List?)?.cast<int>() ?? [];
-        final dayNum = dt.weekday == 7 ? 7 : dt.weekday;
-        if (days.contains(dayNum)) matches = true;
-      } else if (ruleType == 'time_range') {
-        final days = (r['days_of_week'] as List?)?.cast<int>() ?? [];
-        final dayNum = dt.weekday == 7 ? 7 : dt.weekday;
-        if (!days.contains(dayNum)) continue;
-        final startTime = (r['start_time'] as String).substring(0, 5);
-        final endTime = (r['end_time'] as String).substring(0, 5);
-        if (currentTime.compareTo(startTime) >= 0 && currentTime.compareTo(endTime) < 0) {
-          matches = true;
-        }
+      } catch (_) {
+        // Regla mal formada: se ignora sin romper la estimación.
+        continue;
       }
 
       if (matches) {

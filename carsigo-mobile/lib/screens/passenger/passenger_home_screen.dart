@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,7 +18,6 @@ import '../../theme/carsigo_theme.dart';
 
 const _bg = CarSiGoColors.bg;
 const _surface = CarSiGoColors.surface;
-const _surfaceLight = CarSiGoColors.surfaceLight;
 const _border = CarSiGoColors.border;
 const _cyan = CarSiGoColors.cyan;
 const _green = CarSiGoColors.green;
@@ -26,8 +25,12 @@ const _textPrimary = CarSiGoColors.textPrimary;
 const _textSecondary = CarSiGoColors.textSecondary;
 const _textMuted = CarSiGoColors.textMuted;
 
-const _vehicleMotoSvg = 'assets/vehicles/moto.svg';
-const _vehicleAutoSvg = 'assets/vehicles/auto.svg';
+const _vehicleMotoImg = 'assets/vehicles/Moto.png';
+const _vehicleAutoImg = 'assets/vehicles/Carro.png';
+const _surfaceHigh = Color(0xFF2A2A2A);
+const _glass = Color(0xD91E1E1E);
+const _sheetGlass = Color(0x2E131313);
+const _onPrimaryTeal = Color(0xFF00363D);
 
 class PassengerHomeScreen extends ConsumerStatefulWidget {
   const PassengerHomeScreen({super.key});
@@ -40,6 +43,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   final _engine = PricingEngine();
   final _zoneService = ZoneService();
   final _mapCtrl = MapController();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _pickupCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
   // Posición en vivo del usuario: solo el marcador se reconstruye con cada
@@ -70,6 +74,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   bool _userInUrban = false;
 
   List<LatLng>? _routePoints;
+  bool _routeHasRoad = false;
   double _routeKm = 0;
   double _routeMin = 0;
 
@@ -265,33 +270,48 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   Future<void> _recalculateEstimate() async {
     if (_pickupPos == null || _destPos == null) {
       setState(() {
-        _estimate = null; _routePoints = null; _routeKm = 0; _routeMin = 0;
+        _estimate = null; _routePoints = null; _routeHasRoad = false;
+        _routeKm = 0; _routeMin = 0;
       });
       return;
     }
 
-    final route = await LocationService.getRoute(
-      fromLat: _pickupPos!.latitude,
-      fromLng: _pickupPos!.longitude,
-      toLat: _destPos!.latitude,
-      toLng: _destPos!.longitude,
-    );
+    RouteInfo route;
+    try {
+      route = await LocationService.getRoute(
+        fromLat: _pickupPos!.latitude,
+        fromLng: _pickupPos!.longitude,
+        toLat: _destPos!.latitude,
+        toLng: _destPos!.longitude,
+      );
+    } catch (e) {
+      debugPrint('getRoute error: $e');
+      route = LocationService.fallbackRoute(
+        _pickupPos!.latitude,
+        _pickupPos!.longitude,
+        _destPos!.latitude,
+        _destPos!.longitude,
+      );
+    }
     final distance = route.distanceKm;
     try {
       final est = await _engine.calculateFare(
         vehicleType: _vehicleType,
         distanceKm: distance,
+        zoneId: _currentZone?.id,
       );
       if (mounted) {
         setState(() {
           _estimate = est;
           _offerFare = null; // la oferta vuelve a la tarifa base al recalcular
           _routePoints = route.points;
+          _routeHasRoad = route.hasRoad;
           _routeKm = route.distanceKm;
           _routeMin = route.durationMin;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('calculateFare error: $e');
       if (mounted) setState(() { _estimate = null; });
     }
   }
@@ -362,6 +382,8 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
+      key: _scaffoldKey,
+      drawer: _buildDrawer(),
       body: _activeTrip != null ? _buildActiveTripView() : _buildMainView(),
     );
   }
@@ -400,27 +422,32 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       ]);
     }
 
-    // Estilo inDrive: mapa a pantalla completa, buscador flotante arriba y
-    // panel inferior compacto con vehículo + tarifa negociable. El buscador
-    // y el panel SIEMPRE están visibles con zona activa (la validación
-    // urbana bloquea solo destinos/recogidas fuera del casco, no la UI).
+    // Estilo del diseño: mapa a pantalla completa, botón de menú arriba a la
+    // izquierda, buscador flotante debajo, botón de localización al centro
+    // derecho y panel inferior con vehículo + tarifa negociable + CTA.
+    // El buscador y el panel SIEMPRE están visibles con zona activa (la
+    // validación urbana bloquea solo destinos/recogidas fuera del casco).
+    final topInset = MediaQuery.of(context).padding.top + 8;
     return Stack(children: [
       _buildMap(),
       Positioned(
         left: 16,
         right: 16,
-        top: MediaQuery.of(context).padding.top + 8,
-        child: Column(children: [
-          if (!_userInUrban) _buildUrbanWarning(),
-          const SizedBox(height: 8),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: _buildSearchCard()),
-            const SizedBox(width: 8),
-            _buildProfileHistoryButtons(),
-          ]),
+        top: topInset,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _buildMenuButton(),
           const SizedBox(height: 12),
-          Align(alignment: Alignment.centerLeft, child: _buildGpsButton()),
+          _buildSearchCard(),
+          if (!_userInUrban) ...[
+            const SizedBox(height: 8),
+            _buildUrbanWarning(),
+          ],
         ]),
+      ),
+      Positioned(
+        right: 16,
+        top: MediaQuery.of(context).size.height / 2 - 24,
+        child: _buildLocateButton(),
       ),
       Positioned(
         left: 0, right: 0, bottom: 0,
@@ -429,51 +456,96 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     ]);
   }
 
-  /// Botón flotante circular oscuro con borde azul neón: recentra la
-  /// cámara sobre la ubicación actual del usuario.
-  Widget _buildGpsButton() {
+  /// Botón flotante del menú (esquina superior izquierda, estilo del
+  /// diseño): abre el drawer lateral con Perfil e Historial.
+  Widget _buildMenuButton() {
     return Material(
-      color: _surface,
+      color: _glass,
       shape: CircleBorder(side: BorderSide(color: _cyan, width: 1.5)),
-      elevation: 4,
-      shadowColor: Colors.black,
+      elevation: 6,
+      shadowColor: _cyan.withValues(alpha: 0.35),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => _scaffoldKey.currentState?.openDrawer(),
+        child: const SizedBox(
+          width: 48, height: 48,
+          child: Icon(Icons.menu, size: 24, color: _cyan),
+        ),
+      ),
+    );
+  }
+
+  /// Botón flotante circular con borde neón (centro-derecha): recentra la
+  /// cámara sobre la ubicación actual del usuario.
+  Widget _buildLocateButton() {
+    return Material(
+      color: _glass,
+      shape: CircleBorder(side: BorderSide(color: _cyan, width: 1.5)),
+      elevation: 6,
+      shadowColor: _cyan.withValues(alpha: 0.35),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: () {
           if (_currentPos != null) _mapCtrl.move(_currentPos!, 15);
         },
         child: const SizedBox(
-          width: 44, height: 44,
-          child: Icon(Icons.gps_fixed, size: 22, color: _cyan),
+          width: 48, height: 48,
+          child: Icon(Icons.near_me, size: 22, color: _cyan),
         ),
       ),
     );
   }
 
-  /// Accesos flotantes a historial y perfil (sustituyen a la AppBar).
-  Widget _buildProfileHistoryButtons() {
-    Widget btn(IconData icon, VoidCallback onTap) {
-      return Material(
-        color: _surface,
-        shape: CircleBorder(side: BorderSide(color: _border)),
-        elevation: 3,
-        shadowColor: Colors.black,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(
-            width: 44, height: 44,
-            child: Icon(icon, size: 22, color: _textPrimary),
+  /// Drawer lateral: accesos a Perfil e Historial (sustituye a los botones
+  /// flotantes de la esquina superior derecha).
+  Widget _buildDrawer() {
+    final user = ref.read(currentUserProvider);
+    final name = (user?.displayName ?? '').isNotEmpty
+        ? user!.displayName!
+        : (user?.email ?? 'Pasajero');
+    return Drawer(
+      backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'CarSiGo',
+                style: TextStyle(color: _cyan, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                name,
+                style: const TextStyle(color: _textMuted, fontSize: 13, fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ]),
           ),
-        ),
-      );
-    }
-
-    return Column(children: [
-      btn(Icons.person_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()))),
-      const SizedBox(height: 8),
-      btn(Icons.history_rounded, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TripHistoryScreen()))),
-    ]);
+          const Divider(height: 1, color: _border),
+          ListTile(
+            leading: const Icon(Icons.person_outline, color: _cyan),
+            title: const Text('Mi perfil', style: TextStyle(fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.history_rounded, color: _cyan),
+            title: const Text('Historial de viajes', style: TextStyle(fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TripHistoryScreen()));
+            },
+          ),
+        ]),
+      ),
+    );
   }
 
   Widget _buildUrbanWarning() {
@@ -500,23 +572,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   Widget _buildMap() {
     final lines = <Polyline>[];
-    if ((_routePoints?.length ?? 0) >= 2) {
+    // Solo se dibuja la ruta cuando es una ruta real por carretera: una línea
+    // recta entre puntos engañaría al usuario (nunca se traza recto).
+    if (_routeHasRoad && (_routePoints?.length ?? 0) >= 2) {
       lines.add(Polyline(
         points: _routePoints!,
         color: _cyan,
         strokeWidth: 4,
-      ));
-    } else if (_pickupPos != null && _destPos != null) {
-      lines.add(Polyline(
-        points: [_pickupPos!, _destPos!],
-        color: _cyan.withAlpha(128),
-        strokeWidth: 2,
-      ));
-    } else if (_pickupPos != null) {
-      lines.add(Polyline(
-        points: [_pickupPos!],
-        color: _green.withAlpha(160),
-        strokeWidth: 2,
       ));
     }
 
@@ -567,15 +629,20 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
+  /// Marcador de la ubicación actual: personita pequeña (estilo "estás aquí"),
+  /// centrada exactamente sobre la posición. Tamaño fijo en pantalla.
   Widget _currentPosMarker() {
     return Container(
-      padding: const EdgeInsets.all(4),
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(color: Colors.black45, blurRadius: 6, offset: const Offset(0, 2)),
+        ],
       ),
-      child: const Icon(Icons.my_location, color: Colors.blue, size: 16),
+      child: const Icon(Icons.person, color: Colors.blue, size: 20),
     );
   }
 
@@ -594,38 +661,41 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
-  /// Tarjeta flotante superior estilo inDrive: destino (principal) y origen
-  /// (secundario, con botón para usar la ubicación actual).
+  /// Tarjeta de búsqueda flotante (estilo del diseño): fila de origen arriba
+  /// ("Tu ubicación actual" con icono verde) y destino debajo, más grande.
   Widget _buildSearchCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _border),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 8)),
-        ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: _glass,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _buildSearchRow(
+              text: _pickupCtrl.text,
+              hint: 'Tu ubicación actual',
+              icon: Icons.my_location,
+              iconColor: _green,
+              onTap: () => _openPlaceSearch(pickupTarget: true),
+              onLocate: _locatePickup,
+              locating: _locatingPickup,
+            ),
+            Divider(height: 1, thickness: 1, color: Colors.white.withValues(alpha: 0.05)),
+            _buildSearchRow(
+              text: _destCtrl.text,
+              hint: '¿A dónde vas?',
+              icon: Icons.search,
+              iconColor: _cyan,
+              emphasized: true,
+              onTap: () => _openPlaceSearch(pickupTarget: false),
+            ),
+          ]),
+        ),
       ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _buildSearchRow(
-          text: _destCtrl.text,
-          hint: '¿A dónde vas?',
-          icon: Icons.search,
-          iconColor: _cyan,
-          emphasized: true,
-          onTap: () => _openPlaceSearch(pickupTarget: false),
-        ),
-        Divider(height: 1, thickness: 1, color: _border),
-        _buildSearchRow(
-          text: _pickupCtrl.text,
-          hint: 'Tu ubicación',
-          icon: Icons.my_location,
-          iconColor: _green,
-          onTap: () => _openPlaceSearch(pickupTarget: true),
-          onLocate: _locatePickup,
-          locating: _locatingPickup,
-        ),
-      ]),
     );
   }
 
@@ -641,28 +711,23 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(children: [
-          Container(
-            width: 30, height: 30,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: iconColor),
-          ),
+          Icon(icon, size: 22, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               text.isNotEmpty ? text : hint,
               style: TextStyle(
-                color: text.isNotEmpty ? _textPrimary : _textMuted,
-                fontSize: emphasized ? 15 : 13,
+                color: text.isNotEmpty ? _textPrimary : _textMuted.withValues(alpha: 0.6),
+                fontSize: emphasized
+                    ? (text.isNotEmpty ? 18 : 22)
+                    : 14,
                 fontWeight: text.isNotEmpty
-                    ? (emphasized ? FontWeight.w700 : FontWeight.w600)
-                    : FontWeight.w400,
+                    ? (emphasized ? FontWeight.w800 : FontWeight.w600)
+                    : FontWeight.w700,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -671,7 +736,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           if (onLocate != null)
             locating
                 ? const Padding(
-                    padding: EdgeInsets.all(8),
+                    padding: EdgeInsets.all(6),
                     child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _cyan)),
                   )
                 : IconButton(
@@ -686,129 +751,208 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
-  /// Bottom sheet flotante: selector de vehículo (iconos SVG 3D), ruta,
-  /// tarifa negociable (-/+) y CTA a ancho completo.
+  /// Bottom sheet flotante (estilo del diseño): asa, selector de vehículos
+  /// (iconos sin contenedor, centrados), fila de ruta, píldora de oferta
+  /// (-/+/escribible) y CTA "SOLICITAR VIAJE" a ancho completo. El fondo es
+  /// translúcido: el mapa se ve a través del panel.
   Widget _buildBottomPanel() {
     final hasDest = _destPos != null;
-    final vehicleLabel = _vehicleType == VehicleType.moto ? 'moto' : 'carro';
     final base = _estimate?.finalFare;
     final offer = _offerFare ?? base;
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + MediaQuery.of(context).viewPadding.bottom),
-      decoration: BoxDecoration(
-        color: _surface.withValues(alpha: 0.98),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 28, offset: const Offset(0, -6)),
-        ],
-      ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        // Asa del bottom sheet.
-        Container(
-          width: 36, height: 4,
+    final showRoute = hasDest && _estimate != null;
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
           decoration: BoxDecoration(
-            color: _border,
-            borderRadius: BorderRadius.circular(2),
+            color: _sheetGlass,
+            border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 28, offset: const Offset(0, -8)),
+            ],
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: _VehicleOption(
-              assetPath: _vehicleMotoSvg,
-              label: 'Moto',
-              selected: _vehicleType == VehicleType.moto,
-              onTap: () { setState(() => _vehicleType = VehicleType.moto); _recalculateEstimate(); },
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 20 + MediaQuery.of(context).viewPadding.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Asa del bottom sheet.
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _VehicleOption(
-              assetPath: _vehicleAutoSvg,
-              label: 'Carro',
-              selected: _vehicleType == VehicleType.car,
-              onTap: () { setState(() => _vehicleType = VehicleType.car); _recalculateEstimate(); },
+            const SizedBox(height: 14),
+            // Iconos de vehículo: solo el dibujo, sin contenedores, centrados.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _VehicleOption(
+                  imgPath: _vehicleMotoImg,
+                  label: 'Moto',
+                  eta: '3 min',
+                  selected: _vehicleType == VehicleType.moto,
+                  onTap: () { setState(() => _vehicleType = VehicleType.moto); _recalculateEstimate(); },
+                ),
+                const SizedBox(width: 64),
+                _VehicleOption(
+                  imgPath: _vehicleAutoImg,
+                  label: 'Carro',
+                  eta: '5 min',
+                  selected: _vehicleType == VehicleType.car,
+                  onTap: () { setState(() => _vehicleType = VehicleType.car); _recalculateEstimate(); },
+                ),
+              ],
             ),
-          ),
-        ]),
-        if (hasDest && _estimate != null) ...[
-          const SizedBox(height: 12),
-          Row(children: [
-            Icon(Icons.route, size: 15, color: _textMuted),
-            const SizedBox(width: 6),
-            Text(
-              '${_routeKm.toStringAsFixed(1)} km · ${_routeMin.round()} min',
-              style: const TextStyle(color: _textSecondary, fontSize: 12.5, fontWeight: FontWeight.w600),
-            ),
-            const Spacer(),
-            Text(
-              'Tarifa base ${_formatMoney(base!)}',
-              style: const TextStyle(color: _textMuted, fontSize: 12, fontWeight: FontWeight.w500),
+            if (showRoute) ...[
+              const SizedBox(height: 10),
+              Row(children: [
+                Icon(Icons.route, size: 14, color: _textMuted),
+                const SizedBox(width: 6),
+                Text(
+                  '${_routeKm.toStringAsFixed(1)} km · ${_routeMin.round()} min',
+                  style: const TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  'Tarifa base ${_formatMoney(base!)}',
+                  style: const TextStyle(color: _textMuted, fontSize: 11.5, fontWeight: FontWeight.w500),
+                ),
+              ]),
+            ],
+            const SizedBox(height: 10),
+            _buildFarePill(base: base, offer: offer),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity, height: 56,
+              child: ElevatedButton(
+                onPressed: _loading || _pickupPos == null || !hasDest ? null : _requestTrip,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _cyan,
+                  foregroundColor: _onPrimaryTeal,
+                  disabledBackgroundColor: _cyan.withValues(alpha: 0.22),
+                  disabledForegroundColor: _onPrimaryTeal.withValues(alpha: 0.75),
+                  elevation: 6,
+                  shadowColor: _cyan,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                ),
+                child: _loading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: _onPrimaryTeal))
+                    : Text(hasDest ? 'SOLICITAR VIAJE' : 'ELIGE UN DESTINO'),
+              ),
             ),
           ]),
-          const SizedBox(height: 12),
-          _buildFareControl(base: base, offer: offer ?? base),
-        ],
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity, height: 56,
-          child: ElevatedButton(
-            onPressed: _loading || _pickupPos == null || !hasDest ? null : _requestTrip,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _cyan, foregroundColor: _bg,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-            ),
-            child: _loading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: _bg))
-                : Text(hasDest
-                    ? 'Solicitar $vehicleLabel — COL ${_formatMoney(offer ?? base ?? 0)}'
-                    : 'Elige un destino'),
+        ),
+      ),
+    );
+  }
+
+  /// Píldora de oferta (estilo del diseño): botones (-) y (+) en pasos de
+  /// $500 alrededor del precio; tocando el monto se abre el teclado para
+  /// escribir un valor exacto (ej: $5.205). Rango: base → base × 2.
+  Widget _buildFarePill({required double? base, required double? offer}) {
+    const step = 500.0;
+    final hasFare = base != null && offer != null;
+    final min = base ?? 0;
+    final max = (base ?? 0) * 2;
+    final offerValue = offer ?? 0;
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: _surfaceHigh.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(children: [
+        _fareBtn(Icons.remove, hasFare && offerValue > min, () {
+          setState(() => _offerFare = (offerValue - step).clamp(min, max));
+        }),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: hasFare
+                ? () => _editOffer(min: min, max: max, current: offerValue)
+                : null,
+            child: Column(children: [
+              const Text(
+                'OFERTA',
+                style: TextStyle(color: _textMuted, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 2.5),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                hasFare ? _formatMoney(offerValue) : '—',
+                style: TextStyle(
+                  color: hasFare ? _cyan : _textMuted,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ]),
           ),
         ),
+        _fareBtn(Icons.add, hasFare && offerValue < max, () {
+          setState(() => _offerFare = (offerValue + step).clamp(min, max));
+        }),
       ]),
     );
   }
 
-  /// Tarifa negociable: contenedor con botones (-) y (+) alrededor del
-  /// precio. Rango: tarifa base → base × 2, en pasos de $500.
-  Widget _buildFareControl({required double base, required double offer}) {
-    const step = 500.0;
-    final min = base;
-    final max = base * 2;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: _surfaceLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _cyan.withValues(alpha: 0.45)),
+  /// Diálogo con teclado numérico para ofertar un valor exacto en pesos.
+  Future<void> _editOffer({
+    required double min,
+    required double max,
+    required double current,
+  }) async {
+    final ctrl = TextEditingController(text: current.round().toString());
+    final value = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Tu oferta',
+          style: TextStyle(fontWeight: FontWeight.w800, color: _textPrimary),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          decoration: InputDecoration(
+            labelText: 'Valor en pesos (COP)',
+            hintText: 'Ej: 5205',
+            prefixText: '\$ ',
+            helperText: 'Entre ${_formatMoney(min)} y ${_formatMoney(max)}',
+            helperStyle: const TextStyle(color: _textMuted, fontSize: 11),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: _textMuted)),
+          ),
+          FilledButton(
+            onPressed: () {
+              final v = double.tryParse(ctrl.text.replaceAll(RegExp(r'[^\d]'), ''));
+              Navigator.pop(ctx, v);
+            },
+            child: const Text('Aplicar', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Ofrece tu precio', style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 2),
-            Text('mínimo \$${_formatMoney(min)}', style: const TextStyle(color: _textMuted, fontSize: 11, fontWeight: FontWeight.w500)),
-          ]),
-        ),
-        _fareBtn(Icons.remove, offer > min, () {
-          setState(() => _offerFare = (offer - step).clamp(min, max));
-        }),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Column(children: [
-            Text('COL', style: const TextStyle(color: _textMuted, fontSize: 10, fontWeight: FontWeight.w600)),
-            Text(
-              _formatMoney(offer),
-              style: const TextStyle(color: _cyan, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -0.3),
-            ),
-          ]),
-        ),
-        _fareBtn(Icons.add, offer < max, () {
-          setState(() => _offerFare = (offer + step).clamp(min, max));
-        }),
-      ]),
     );
+    if (value == null || !mounted) return;
+    final clamped = value.clamp(min, max).roundToDouble();
+    setState(() => _offerFare = clamped);
+    if (clamped != value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('La oferta debe estar entre ${_formatMoney(min)} y ${_formatMoney(max)}'),
+        ),
+      );
+    }
   }
 
   Widget _fareBtn(IconData icon, bool enabled, VoidCallback onTap) {
@@ -816,13 +960,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       opacity: enabled ? 1 : 0.35,
       child: Material(
         color: _surface,
-        shape: CircleBorder(side: BorderSide(color: _border)),
+        shape: CircleBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: enabled ? onTap : null,
           child: SizedBox(
-            width: 44, height: 44,
-            child: Icon(icon, size: 20, color: _textPrimary),
+            width: 48, height: 48,
+            child: Icon(icon, size: 22, color: _textPrimary),
           ),
         ),
       ),
@@ -860,7 +1004,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
             valueListenable: _posNotifier,
             builder: (_, pos, _) => MarkerLayer(markers: [
               if (pos != null)
-                Marker(point: pos, child: const Icon(Icons.my_location, color: Colors.blue, size: 24)),
+                Marker(point: pos, child: _currentPosMarker()),
             ]),
           ),
         ],
@@ -923,14 +1067,19 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }
 }
 
+/// Opción de vehículo SIN contenedores: solo el dibujo del vehículo (PNG)
+  /// con un brillo neón sutil detrás si está seleccionado, y debajo la
+  /// etiqueta con el tiempo estimado de llegada del conductor.
 class _VehicleOption extends StatelessWidget {
-  final String assetPath;
+  final String imgPath;
   final String label;
+  final String eta;
   final bool selected;
   final VoidCallback onTap;
   const _VehicleOption({
-    required this.assetPath,
+    required this.imgPath,
     required this.label,
+    required this.eta,
     required this.selected,
     required this.onTap,
   });
@@ -939,33 +1088,53 @@ class _VehicleOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedScale(
-        scale: selected ? 1.04 : 1.0,
-        duration: const Duration(milliseconds: 180),
+        scale: selected ? 1.08 : 1.0,
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? _surfaceLight : _surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? _cyan : _border, width: selected ? 2 : 1),
-            boxShadow: selected
-                ? [BoxShadow(color: _cyan.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))]
-                : null,
-          ),
-          child: Column(children: [
-            SvgPicture.asset(
-              assetPath,
-              width: 44,
-              height: 44,
-              colorFilter: selected
-                  ? null
-                  : ColorFilter.mode(_textMuted.withValues(alpha: 0.7), BlendMode.srcIn),
-            ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(alignment: Alignment.center, children: [
+              // Brillo neón suave detrás del dibujo (sin fondo sólido).
+              if (selected)
+                Container(
+                  width: 122, height: 122,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _cyan.withValues(alpha: 0.22),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              Opacity(
+                opacity: selected ? 1 : 0.55,
+                child: Image.asset(imgPath, width: 84, height: 84),
+              ),
+            ]),
             const SizedBox(height: 6),
-            Text(label, style: TextStyle(color: selected ? _cyan : _textMuted, fontWeight: FontWeight.w700, fontSize: 14)),
-          ]),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: selected ? _textPrimary : _textMuted,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              eta,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? _cyan : _textMuted,
+              ),
+            ),
+          ],
         ),
       ),
     );

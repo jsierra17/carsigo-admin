@@ -598,7 +598,13 @@ class LocationService {
     }
   }
 
-  static RouteInfo _fallbackRoute(double fromLat, double fromLng, double toLat, double toLng) {
+  static RouteInfo _fallbackRoute(double fromLat, double fromLng, double toLat, double toLng) =>
+      fallbackRoute(fromLat, fromLng, toLat, toLng);
+
+  /// Ruta de emergencia (línea recta + distancia haversine): sirve solo para
+  /// estimar la tarifa cuando la API de rutas falla; NO debe dibujarse en el
+  /// mapa (hasRoad=false lo indica).
+  static RouteInfo fallbackRoute(double fromLat, double fromLng, double toLat, double toLng) {
     final a = LatLng(fromLat, fromLng);
     final b = LatLng(toLat, toLng);
     final km = _haversineKm(fromLat, fromLng, toLat, toLng);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapPin, Power, PowerOff, Search, Loader2, Save, Globe, Navigation, Layers, Trash2 } from 'lucide-react';
 import { db } from '@/lib/db';
 import { createGeofence, deleteGeofence, toggleGeofenceStatus, searchMunicipality } from './actions';
+import { copyZonePricing, getPricingSourceZoneId } from '@/app/admin/tarifas/zone-actions';
 import { useToast } from '@/contexts/ToastContext';
 import dynamic from 'next/dynamic';
 import type { Geometry } from 'geojson';
@@ -116,13 +117,26 @@ export default function ZonasPage() {
     if (!previewZone) return;
     setIsSaving(true);
     try {
-      await createGeofence({
+      const zoneId = await createGeofence({
         municipality_name: previewZone.name,
         boundaries: previewZone.geometry,
         is_active: true,
         base_multiplier: 1.0
       });
       toast.success(`¡Zona habilitada con éxito: ${previewZone.name}!`);
+      if (zoneId) {
+        const sourceZoneId = await getPricingSourceZoneId();
+        if (sourceZoneId && sourceZoneId !== zoneId) {
+          const res = await copyZonePricing(sourceZoneId, zoneId);
+          if ('error' in res) {
+            toast.info('Zona creada. No se copiaron tarifas por defecto.');
+          } else {
+            toast.info(`Tarifas por defecto creadas (${res.cards} tarifas, ${res.schedules} horarios).`);
+          }
+        } else {
+          toast.info('Zona creada. Configura sus tarifas en el módulo Tarifas.');
+        }
+      }
       setPreviewZone(null);
       setSearchQuery('');
       fetchZonas();

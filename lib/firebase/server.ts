@@ -10,15 +10,15 @@ export const SESSION_COOKIE = 'carsigo_session'
 export const ROLE_COOKIE = 'carsigo_role'
 export const STATUS_COOKIE = 'carsigo_status'
 
-const SESSION_MAX_AGE = 14 * 24 * 60 * 60 // 14 días
+const SESSION_MAX_AGE = 24 * 60 * 60 // 24 h: tope servidor de la sesión de Firebase
 
 function cookieOpts() {
+  // Sin maxAge: cookie de sesión del navegador → se borra al cerrar la pestaña/ventana.
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: SESSION_MAX_AGE,
   }
 }
 

@@ -17,6 +17,27 @@ const FIREBASE_CONFIG = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
+// Marcador por pestaña: se guarda en sessionStorage al iniciar sesión y se
+// borra al cerrar la pestaña/ventana. Sin marcador → no hay sesión (la cookie
+// de sesión del servidor por sí sola sobrevive al cierre de una pestaña).
+export const TAB_SESSION_KEY = 'carsigo_tab_session'
+
+function setTabSession() {
+  try {
+    sessionStorage.setItem(TAB_SESSION_KEY, '1')
+  } catch {
+    // sessionStorage no disponible: la cookie de sesión sigue protegiendo
+  }
+}
+
+function clearTabSession() {
+  try {
+    sessionStorage.removeItem(TAB_SESSION_KEY)
+  } catch {
+    // No aplica
+  }
+}
+
 export function getFirebaseApp() {
   return getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG)
 }
@@ -39,6 +60,7 @@ export function createClient() {
         const idToken = await cred.user.getIdToken()
         const ok = await exchangeTokenForSession(idToken)
         if (!ok.success) throw new Error('No se pudo crear la sesión del servidor')
+        setTabSession()
         // Refrescar el token del navegador para recoger los custom claims (role/status)
         // que se setean en el servidor, necesarios para las reglas de Firestore.
         await cred.user.getIdToken(true)
@@ -57,6 +79,7 @@ export function createClient() {
     },
 
     signOut: async () => {
+      clearTabSession()
       await signOutCompat()
       try {
         await firebaseAuth.signOut()
