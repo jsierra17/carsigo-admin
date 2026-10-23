@@ -6,13 +6,21 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "outDir": "lib",
-    "rootDir": "src",
+    "rootDir": ".",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2022",
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src",
+    "api-src"
+  ],
+  "exclude": [
+    "node_modules",
+    "api-src/routes/_legacy_next_api"
   ]
 }

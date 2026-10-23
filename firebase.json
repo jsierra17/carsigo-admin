@@ -1,15 +1,25 @@
 {
-  "firestore": {
-    "database": "(default)",
-    "location": "southamerica-east1",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "emulators": {
-    "auth": {},
-    "firestore": {},
-    "ui": {
-      "enabled": true
-    }
-  }
+    "firestore":  {
+                      "database":  "(default)",
+                      "location":  "southamerica-east1",
+                      "rules":  "firebase/firestore.rules",
+                      "indexes":  "firebase/firestore.indexes.json"
+                  },
+    "storage":  {
+                    "rules":  "firebase/storage.rules"
+                },
+    "emulators":  {
+                      "auth":  {
+
+                               },
+                      "firestore":  {
+
+                                    },
+                      "ui":  {
+                                 "enabled":  true
+                             },
+                      "storage":  {
+                                      "port":  9199
+                                  }
+                  }
 }

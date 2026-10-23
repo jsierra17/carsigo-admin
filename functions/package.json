@@ -13,8 +13,13 @@
   "engines": {
     "node": "24"
   },
-  "main": "lib/index.js",
+  "type": "module",
+  "main": "lib/src/index.js",
   "dependencies": {
+    "@firebase/app": "^0.16.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "firebase-admin": "^13.6.0",
     "firebase-functions": "^7.0.0"
   },

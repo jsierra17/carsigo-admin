@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -13,18 +14,27 @@
 # testing
 /coverage
 
-# next.js
+# next.js (panel migrado a Vue: solo queda por transición)
 /.next/
 /out/
 
+# vue / vite
+**/dist/
+**/.vite/
+**/*.local
+
 # production
 /build
+
+# artefactos de scripts
+/geofence_output.json
 
 # misc
 .DS_Store
 *.pem
 
-# debug
+# logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -50,3 +60,23 @@ next-env.d.ts
 .roo/
 .trae/
 .windsurf/
+
+# build del panel copiado a firebase/public (generado por scripts/copy-web-dist.js)
+/firebase/public/
+
+# caches del CLI de Firebase
+.firebase/
+**/.firebase/
+
+# restos de Expo / React Native (el movil real es Flutter)
+/.expo/
+/android/
+/app.json
+
+# logs del emulador de Firebase
+firestore-debug.log
+firebase-debug.log
+
+# service account de produccion (acceso total) - se carga aparte a proposito
+.env.seed
+!.env.seed.example

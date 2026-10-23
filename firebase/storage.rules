@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  // Las funciones deben declararse DENTRO del bloque service.
+  function isAdmin() {
+    return request.auth != null &&
+      (request.auth.token.role == 'admin' ||
+       request.auth.token.role == 'superadmin');
+  }
+
+  match /b/{bucket}/o {
+    // Documentos de conductores: driver_documents/{userId}/{tipo}.jpg
+    // El dueño sube y lee los suyos; admin (vía Admin SDK) todo.
+    match /driver_documents/{userId}/{fileName} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin()) &&
+        request.resource.size < 8 * 1024 * 1024 &&
+        fileName.matches('(cedula_frente|cedula_reverso|propiedad|seguro|licencia|soat)\\.(jpg|jpeg|png)$');
+    }
+
+    // Bloqueo total por defecto para el resto.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

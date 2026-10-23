@@ -1,0 +1,25 @@
+{
+  "name": "@carsigo/admin-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CarSiGo Admin API - Express + Firebase Admin SDK (ES Modules)",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "lint": "eslint src --ext .js",
+    "test": "npm run test:smoke && npm run test:roles",
+    "test:smoke": "node scripts/smoke-test.js",
+    "test:roles": "node scripts/test-admin-role.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.10.0"
+  }
+}

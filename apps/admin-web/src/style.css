@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+/**
+ * Tokens de marca CarSiGo.
+ * La paleta "carsigo" es usada por las clases `bg-carsigo-600`, `text-carsigo-700`, etc.
+ */
+@theme {
+  --color-carsigo-50: #eefbf4;
+  --color-carsigo-100: #d6f5e6;
+  --color-carsigo-200: #b0ead0;
+  --color-carsigo-300: #7cd9b4;
+  --color-carsigo-400: #45c093;
+  --color-carsigo-500: #1fa578;
+  --color-carsigo-600: #128560;
+  --color-carsigo-700: #106b51;
+  --color-carsigo-800: #105541;
+  --color-carsigo-900: #0f4637;
+  --color-carsigo-950: #03271d;
+
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900;
+    font-family: var(--font-sans);
+  }
+}

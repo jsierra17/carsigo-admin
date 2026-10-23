@@ -1,0 +1,150 @@
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../providers/auth_provider.dart';
+import '../models/trip.dart';
+import '../theme/carsigo_theme.dart';
+
+
+class TripHistoryScreen extends ConsumerStatefulWidget {
+  const TripHistoryScreen({super.key});
+  @override
+  ConsumerState<TripHistoryScreen> createState() => _TripHistoryScreenState();
+}
+
+class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
+  CarSiGoPalette get p => context.palette;
+
+  final _firestore = FirebaseFirestore.instance;
+  List<Trip> _trips = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  Future<void> _loadTrips() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) { if (mounted) setState(() => _loading = false); return; }
+
+    try {
+      final asPassenger = await _firestore
+          .collection('trips')
+          .where('passenger_id', isEqualTo: user.uid)
+          .orderBy('created_at', descending: true)
+          .limit(50)
+          .get();
+
+      final asDriver = await _firestore
+          .collection('trips')
+          .where('driver_id', isEqualTo: user.uid)
+          .orderBy('created_at', descending: true)
+          .limit(50)
+          .get();
+
+      final trips = <Trip>{};
+      for (final d in asPassenger.docs) {
+        trips.add(Trip.fromJson(d.data()));
+      }
+      for (final d in asDriver.docs) {
+        trips.add(Trip.fromJson(d.data()));
+      }
+      final sorted = trips.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (mounted) {
+        setState(() {
+          _trips = sorted;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Color _statusColor(TripStatus s) {
+    switch (s) {
+      case TripStatus.completed: return p.green;
+      case TripStatus.cancelled: return p.textMuted;
+      case TripStatus.inProgress: return p.cyan;
+      case TripStatus.accepted: return p.cyan;
+      case TripStatus.pending: return Colors.orange;
+    }
+  }
+
+  String _fromNow(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'ahora';
+    if (diff.inHours < 1) return 'hace ${diff.inMinutes} min';
+    if (diff.inDays < 1) return 'hace ${diff.inHours}h';
+    if (diff.inDays < 30) return 'hace ${diff.inDays}d';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        title: Text('Historial de viajes', style: TextStyle(fontWeight: FontWeight.w900, color: p.textPrimary, fontSize: 16)),
+        centerTitle: true,
+        backgroundColor: p.surface,
+        foregroundColor: p.textPrimary,
+        elevation: 0,
+      ),
+      body: _loading
+          ? Center(child: CircularProgressIndicator(strokeWidth: 3, color: p.cyan))
+          : _trips.isEmpty
+              ? Center(
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.history, size: 64, color: p.textMuted),
+                    SizedBox(height: 16),
+                    Text('No hay viajes aún', style: TextStyle(color: p.textMuted, fontWeight: FontWeight.w700, fontSize: 18)),
+                    SizedBox(height: 8),
+                    Text('Tus viajes aparecerán aquí\ndespués de tu primer solicitud.', style: TextStyle(color: p.textMuted, fontSize: 13), textAlign: TextAlign.center),
+                  ]),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _trips.length,
+                  itemBuilder: (_, i) {
+                    final t = _trips[i];
+                    final color = _statusColor(t.status);
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: p.border),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(30)),
+                          child: Icon(
+                            t.status == TripStatus.completed ? Icons.check_circle
+                                : t.status == TripStatus.cancelled ? Icons.cancel
+                                : Icons.directions_car,
+                            color: color, size: 22,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(t.pickupAddress, style: TextStyle(color: p.textPrimary, fontWeight: FontWeight.w700, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          if (t.dropoffAddress != null)
+                            Text(t.dropoffAddress!, style: TextStyle(color: p.textMuted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(_fromNow(t.createdAt), style: TextStyle(color: p.textMuted, fontSize: 10)),
+                        ])),
+                        if (t.fareAmount > 0)
+                          Text('\$${t.fareAmount.toStringAsFixed(0)}', style: TextStyle(color: p.cyan, fontWeight: FontWeight.w900, fontSize: 15)),
+                      ]),
+                    );
+                  },
+                ),
+    );
+  }
+}

@@ -1,122 +1,299 @@
-🚗 CarSiGo - Master Workspace & AI Agent Guide
+# CarSiGo
 
-🤖 AVISO PARA EL AGENTE DE IA (WINDSURF / CASCADE /VISUAL STUDIO CODE O SIMILAR)
+Monorepo de **CarSiGo**, plataforma de transporte hiperlocal de El Carmen de Bolívar (Bolívar, Colombia).
 
-Si eres una Inteligencia Artificial leyendo este archivo, este es tu manual operativo estricto. La arquitectura ha evolucionado: el panel admin es web (Next.js) y la aplicación móvil es 100% FLUTTER.
+---
 
-NO asumas ni inventes tecnologías: Apégate al Stack Tecnológico definido aquí. NO uses React Native para la app móvil.
+## Estructura
 
-Contexto de Lenguajes: Para la carpeta /app y /admin usa TypeScript/React. Para la carpeta /carsigo-mobile usa exclusívamente DART y el framework FLUTTER.
+```
+carsigo/
+├── apps/
+│   ├── admin-web/          Panel de administración — Vue 3 + Vite + JavaScript
+│   ├── admin-api/          API del panel — Express + JavaScript (ESM) + firebase-admin
+│   └── mobile/             App móvil — Flutter (pasajero + conductor)
+├── functions/              Cloud Functions — TypeScript (expone la Admin API)
+├── firebase/               Reglas e índices de Firebase
+│   ├── firestore.rules
+│   ├── storage.rules
+│   └── firestore.indexes.json
+├── scripts/                Scripts de utilidad (geofence-builder, deploy helpers)
+├── docs/                   Documentación (guía de despliegue)
+├── package.json            Raíz con npm workspaces
+├── firebase.json           Configuración de Firebase CLI (hosting, functions, firestore)
+└── README.md
+```
 
-Revisa siempre el PRD: Para dudas sobre reglas de negocio (tarifas, comisiones, seguridad), lee obligatoriamente el archivo DOCUMENTACION.md.
+> `packages/` se reservará para `shared-types` (pendiente).
+>
+> `firebase.json` vive en la **raíz** porque el CLI de Firebase resuelve las
+> rutas de `hosting.public` y `functions.source` relativas a la carpeta del
+> config y **rechaza rutas fuera de ella** (`is outside of project directory`).
+> Las reglas y los índices sí están agrupados en `firebase/`.
 
-Sigue el Roadmap: No te adelantes a construir características de Fases futuras a menos que el desarrollador (Jose) te lo indique explícitamente.
+---
 
-🔒 ROL DE USUARIO — REGLA INALTERABLE (NO CAMBIAR)
+## Stack
 
-1. Toda persona que abre la app entra SIEMPRE como PASAJERO. Esa es la regla de negocio: NO existe pantalla de elección de rol (pasajero/conductor) al primer ingreso ni en ningún momento del flujo de autenticación.
-2. Al registrarse/entrar con Google, la app crea automáticamente el perfil del usuario con rol `passenger`.
-3. Ser conductor NO se elige en el inicio: el usuario que quiera conducir va a su PERFIL (ícono de persona, pantalla "Mi perfil") y toca "Quiero ser conductor". Allí se pide el formulario completo (tipo de vehículo, placa, etc.) y se crea una solicitud en `driver_applications` con estado `pending`.
-4. El PANEL ADMIN es el único que APRUEBA/RECHAZA esa solicitud; al aprobar, actualiza el rol del usuario a `driver` y crea su `driver_profiles`.
-5. Solo después de esa aprobación el usuario ve la pantalla de conductor en la app. Sin aprobación, siempre usa la experiencia de pasajero.
-6. No se debe reintroducir ningún selector "¿Pasajero o Conductor?" en el flujo inicial. Si lo aparece, es un bug y debe revertirse.
+| Capa | Tecnología | Para qué |
+|---|---|---|
+| **Panel admin** | **Vue 3.5** (SFC, `<script setup>`) | Interfaz del panel de administración |
+| | **Vite 6** | Bundler y dev server (HMR, proxy a la API) |
+| | **TailwindCSS 4** (`@tailwindcss/vite`) | Estilos utility-first con tokens de marca |
+| | **Pinia 2** | Estado global (sesión, roles, perfil) |
+| | **Vue Router 4** | Enrutamiento SPA con guarda de autenticación |
+| | **Firebase Web SDK 12** | Auth, Firestore, Storage desde el navegador |
+| | **@googlemaps/js-api-loader 1.16** | Google Maps JS API (mapa de zonas) |
+| | **lucide-vue-next** | Iconografía |
+| | **jsPDF + autotable** | Reportes PDF |
+| | **JavaScript puro + JSDoc** | Sin TypeScript en todo el panel |
+| **API** | **Express 4** (ESM) | Servidor HTTP de la Admin API |
+| | **firebase-admin 13** | Acceso privilegiado a Firestore / Auth / Storage |
+| | **cors** · **dotenv** | CORS y configuración por entorno |
+| | **JavaScript puro** | Sin TypeScript; consultas nativas `db.collection().where()` |
+| **Functions** | **firebase-functions 7** (2ª gen) | Despliegue de la Admin API como función HTTP |
+| | **TypeScript 6** | Único piece del proyecto que mantiene TypeScript |
+| **App móvil** | **Flutter 3.10 / Dart** | App de pasajero y conductor (Android/iOS) |
+| | **Riverpod 2** | Estado de la app |
+| | **google_maps_flutter 2.18** | Mapa, marcadores y puck de ubicación |
+| | **geolocator 13** | GPS del dispositivo |
+| | **Google Places / Directions / Geocoding** | Búsqueda, rutas y reverse geocoding |
+| | **Firebase SDK (Flutter)** | Auth, Firestore, Storage, Messaging |
+| **Backend** | **Firestore** (`southamerica-east1`) | Base de datos (11 colecciones) |
+| | **Firebase Auth** | Email/contraseña + Google OAuth + custom claims |
+| | **Firebase Storage** | Documentos del conductor (Cédula, SOAT, licencia…) |
+| | **Firebase Messaging** | Notificaciones push |
+| **Infraestructura** | **Firebase Hosting** | Sirve el panel (SPA + rewrite) |
+| | **Cloud Functions / Cloud Run** | Backend HTTP de la Admin API |
+| | **Artifact Registry** | Imágenes de las Functions |
+| **Tooling** | **npm workspaces** | Monorepo (`apps/*`) |
+| | **ESLint 9** (flat config) · **TypeScript 5** | Lint y tipos (solo `functions/`) |
+| | **Vite 6 / Vitest** · **Playwright** | Build, tests y pruebas en navegador real |
+| | **@turf/turf 7** | Geometría geospatial (buffers, unión de polígonos) |
+| | **Google Cloud CLI 590** | Gestión de Cloud Run / Functions / IAM |
 
-🛠️ Stack Tecnológico
+---
 
-Web Admin: Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS.
+## Puesta en marcha
 
-App Móvil: Flutter (Lenguaje Dart) para compilación nativa en iOS y Android.
+### Requisitos
+- Node.js ≥ 20
+- Flutter 3.10+ (para `apps/mobile`)
+- Una service account de Firebase (ruta en `FIREBASE_SERVICE_ACCOUNT`)
 
-Base de Datos & Auth: Firebase (Firestore + Firebase Auth). SDKs: firebase (Web) y firebase-admin (Servidor).
+### 1. Instalar dependencias
+```bash
+npm install
+```
+> `functions/` mantiene su propio `package.json` y `package-lock.json` (no es workspace).
+> Instálalo aparte si vas a desplegarlo: `npm install --prefix functions`.
 
-Geolocalización: PostGIS (Backend), Mapbox GL JS (Web) y mapbox_maps_flutter (Móvil).
+### 2. Configurar variables de entorno
+El `.env` / `.env.local` de la **raíz** es compartido:
+- Vite lo lee desde la raíz (`envDir`) y expone `NEXT_PUBLIC_FIREBASE_*` y `VITE_*`.
+- La API lo carga como fallback desde `src/config.js`.
 
-📂 Estructura del Proyecto
+```bash
+# .env.local (raíz) —Panel Vue
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
+FIREBASE_SERVICE_ACCOUNT=C:\ruta\a\service-account.json
+OWNER_EMAIL=tu_email@gmail.com
+```
 
-/carsigo-admin (Raíz)
- ├── /app                  # Frontend Web (Next.js App Router)
- │    ├── /admin           # Panel Administrativo (Dashboard, Conductores, Zonas, Finanzas)
- │    └── /login           # Autenticación Web
- ├── /components           # Componentes reutilizables de React (UI)
- ├── /lib                  # Utilidades core web (firebase/, db.ts, types, etc.)
- ├── /carsigo-mobile       # Sub-proyecto: Aplicación Móvil (FLUTTER / DART)
- │    ├── /lib             # Código fuente de Flutter (main.dart, screens, widgets)
- │    └── pubspec.yaml     # Dependencias de Flutter
- ├── .env.local            # Variables de entorno Web
- ├── DOCUMENTACION.md      # Reglas de negocio y PRD (¡Lectura obligatoria!)
- └── README.md             # Este archivo
+```bash
+# apps/admin-api/.env —API (opcional, usa la raíz como fallback)
+PORT=4000
+ALLOWED_ORIGINS=http://localhost:5173
+```
 
+### 3. Levantar
+```bash
+npm run dev        # panel Vue  → http://localhost:5173
+npm run dev:api    # API Express → http://localhost:4000
+```
 
-🚀 ROADMAP DE EJECUCIÓN (Paso a Paso)
+El dev server de Vite hace **proxy** de `/api` → `http://localhost:4000`, así que no hay CORS en desarrollo.
 
-✅ Fase 1: Arquitectura de Base de Datos
+---
 
-[x] Crear proyecto en Firebase.
+## Comandos
 
-[x] Configurar Firestore.
+| Comando | Descripción |
+|---|---|
+| `npm run dev` | Panel Vue en modo desarrollo |
+| `npm run dev:api` | API Express con recarga automática (`node --watch`) |
+| `npm run build` | Build de producción del panel → `apps/admin-web/dist` |
+| `npm run preview` | Sirve el build de producción |
+| `npm run start:api` | API en modo producción |
+| `npm run test:api` | Pruebas de humo + de autorización de la API (18 checks) |
+| `npm run test:ui` | Prueba del panel en un navegador real (12 checks, usa Edge/Chromium) |
+| `npm run test:hosting` | Prueba de la config de Hosting (8 checks, simula el rewrite SPA + proxy) |
+| `npm run test` | Todas las pruebas (38 checks) |
+| `npm run lint` | Lint de todos los workspaces |
+| `npm run geofence` | Genera la geofence (ver `scripts/`) |
+| `npm run build:web` | Build de producción del panel |
+| `npm run preview:hosting` | Simulador local de Firebase Hosting |
+| `npm run deploy:hosting` | Build + deploy del panel a Hosting |
+| `npm run deploy:rules` | Deploy de firestore.rules + índices + storage.rules |
+| `npm run deploy:functions` | Deploy de Cloud Functions |
 
-[x] Crear colecciones core (users, driver_profiles, geofences, wallets).
+---
 
-[x] Configurar llaves y reglas de seguridad para desarrollo.
+## API — endpoints
 
-✅ Fase 2: Panel Administrativo Web (COMPLETADA)
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/pricing/estimate` | Tarifa autoritativa (base + hora + km + anillos + reglas dinámicas) |
+| `GET` | `/api/drivers/nearby` | Conductores activos dentro del radio |
+| `GET`/`POST` | `/api/trips` | Listar / crear viajes |
+| `GET`/`PATCH` | `/api/trips/:id` | Detalle / actualizar estado |
+| `POST` | `/api/zones/check` | ¿El punto está en zona de servicio? |
+| `POST` | `/api/admin/users/:uid/role` 🔒 | Asignar rol (requiere `superadmin`) |
+| `GET` | `/api/admin/users/:uid` 🔒 | Ver usuario (Auth + Firestore) |
 
-[x] UI del Dashboard, Conductores, Zonas y Finanzas.
+🔒 Requiere `Authorization: Bearer <idToken>` con el custom claim `role`.
 
-[x] Middleware y Rutas Protegidas.
+Detalle completo en [`apps/admin-api/README.md`](apps/admin-api/README.md).
 
-[x] CRUD de Zonas (Búsqueda por municipio + guardado de polígonos).
+---
 
-[x] Mejoras del Motor Financiero (Reportes PDF, filtros, toasts).
+## Autenticación del panel
 
-[x] Dashboard en Tiempo Real y Tabla de Viajes.
+El login se resuelve **en el cliente** con el Firebase Web SDK:
+- `signInWithPopup` (Google) o `signInWithEmailAndPassword`.
+- El panel obtiene el ID token y lo envía a la API como `Authorization: Bearer <idToken>`.
+- El rol vive en los **custom claims** (`decodedToken.role`) y se refleja en `users/{uid}.role`.
 
-🚧 Fase 3: App Móvil Base (FLUTTER) - ESTADO ACTUAL
+Cambiar un rol: `POST /api/admin/users/:uid/role` (solo `superadmin`).
+Tras un cambio de rol, el usuario debe renovar su token (`getIdToken(true)`).
 
-Objetivo: Levantar el entorno móvil nativo para Pasajeros y Conductores.
+---
 
-[ ] Inicializar proyecto de Flutter en el directorio /carsigo-mobile.
+## Modelo de datos (Firestore)
 
-[ ] Configurar el archivo pubspec.yaml con dependencias clave (firebase_flutter, flutter_riverpod o provider para estado, go_router para navegación).
+| Colección | Contenido |
+|---|---|
+| `users` | Perfiles (pasajero, conductor, admin). Campo `role` |
+| `driver_profiles` | Estado del conductor (`is_available`, `status`, `vehicle_type`, `plate`) |
+| `driver_applications` | Solicitudes de conductor + documentos |
+| `trips` | Viajes (con `pickup_location`/`dropoff_location` como GeoPoint) |
+| `trip_fare_breakdown` | Desglose de tarifa por viaje |
+| `geofences` | Zonas: `boundary`, `boundaries` (GeoJSON), `urban_polygons`, `rings`, `slug` |
+| `rate_cards` | Tarifas base: `minimum_fare`, `included_km`, tiers de km, comisión |
+| `rate_schedules` | Turnos: `base_fee`, `hourly_increase_percent`, `day_type` |
+| `dynamic_pricing_rules` | Multiplicadores por fecha/día/hora |
+| `wallets` / `settlements` | Saldos y liquidaciones |
 
-[ ] Configurar variables de entorno en Flutter para las llaves de Firebase.
+---
 
-[ ] Crear estructura de carpetas dentro de carsigo-mobile/lib (screens, widgets, services).
+## Seguridad
 
-[ ] Integrar Firebase Auth (Pantallas de Login/Registro para Pasajero y Conductor).
+- `firebase/firestore.rules` y `firebase/storage.rules` controlan el acceso.
+- La API usa el Admin SDK (privilegiado) → **ignora las rules**. Valida explícitamente
+  los roles de los custom claims en cada endpoint sensible.
+- El panel nunca habla con Firestore usando credenciales privilegiadas: usa el
+  Web SDK del usuario, que sí respeta las rules.
 
-🚧 Fase 4: Motor de Viajes en Flutter (Tiempo Real)
+---
 
-Objetivo: Flujo tipo inDrive (Oferta/Contraoferta) en la App.
+## Firebase CLI
 
-[ ] Integrar mapbox_maps_flutter para renderizar el mapa interactivo.
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+firebase deploy --only storage
+firebase deploy --only functions
+```
+> `firebase.json` está en `firebase/`. Ejecuta los comandos desde esa carpeta
+> o ajusta las rutas.
 
-[ ] Validar ubicación del usuario (GPS del dispositivo) contra la colección Geofences (Firestore).
+---
 
-[ ] Implementar Firestore en tiempo real en Dart para emitir y escuchar solicitudes de viaje.
+## 🚀 Despliegue
 
-[ ] UI de contraofertas y selección de conductores.
+Arquitectura en producción:
 
-[ ] Pantalla de ingreso del PIN de 4 dígitos.
+```
+Navegador ──▶ Firebase Hosting ──┬── /assets/** ──▶ estáticos (cache inmutable)
+   https://                        └── /api/**  ──▶ Cloud Function `adminApi`
+   carsigo-9e508.web.app                    (apps/admin-api → functions/api-src)
+                    │
+                    └── /**  ──▶ /index.html  (fallback SPA)
 
-🚧 Fase 5: Motor Financiero (La Billetera Móvil)
+App móvil (Flutter) ──▶ Firebase Auth / Firestore / Storage / Messaging
+```
 
-Objetivo: Gestión de saldos desde la app del conductor.
+**Todo está desplegado y funcionando** en `carsigo-9e508` (proyecto Blaze).
 
-[ ] Lógica de bloqueo en la UI: Ocultar viajes si Wallet.balance < 5000.
+### Comandos
+```bash
+npm run deploy:hosting      # build del panel + deploy a Hosting
+npm run deploy:functions    # copia la API a functions/ + compila + deploy
+npm run deploy:rules        # firestore.rules + índices + storage.rules
+npm run deploy              # todo lo anterior
+npm run enable:apis         # habilita run/cloudbuild/artifactregistry (solo 1 vez)
+```
 
-[ ] Pantalla de recargas e integración de pasarelas (Nequi, Daviplata, PSE).
+### Verificar
+```bash
+curl https://carsigo-9e508.web.app/                                    # panel
+curl https://carsigo-9e508.web.app/api/health                           # API
+curl -X POST https://carsigo-9e508.web.app/api/pricing/estimate \
+  -H "Content-Type: application/json" \
+  -d '{"vehicle_type":"car","distance_km":8,"zone_id":"el-carmen-de-bolivar"}'
+```
 
-[ ] Ejecutar penalidad del 24% por cancelación a menos de 800m.
+### Probar la config SIN desplegar
+```bash
+npm run preview:hosting    # simula Hosting localmente (estáticos + rewrite SPA + proxy /api)
+npm run test:hosting       # 8 checks en navegador real
+```
 
-🚧 Fase 6: Seguridad y Escalabilidad Avanzada
+Guía completa (Cloud Run, CORS, dominios personalizados, VPS alternativo):
+**[`docs/DEPLOY.md`](docs/DEPLOY.md)**
 
-Objetivo: Blindar la plataforma.
+---
 
-[ ] Integrar validación de antecedentes (Registraduría).
+## Documentación
 
-[ ] Biometría Facial nativa (Cámara en Flutter) al inicio de sesión.
+- [`apps/admin-api/README.md`](apps/admin-api/README.md) — endpoints y auth de la API
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — guía de despliegue
+- [`scripts/README.md`](scripts/README.md) — utilidades de línea de comandos
 
-[ ] Botón de Pánico Inteligente.
+---
 
-[ ] Encender reglas de seguridad en Firestore.
+## Panel admin — estructura
+
+```
+apps/admin-web/src/
+├── main.js                  # bootstrap (Pinia + Router)
+├── App.vue
+├── style.css                # Tailwind 4 + tokens de marca
+├── router/index.js          # rutas + guarda de autenticación
+├── stores/auth.js           # store Pinia (login, perfil, roles)
+├── services/
+│   ├── firebase.js          # Firebase Web SDK
+│   ├── api.js               # cliente HTTP (Bearer token) + endpoints
+│   ├── firestore.js         # helpers de Firestore (queries, CRUD, batch)
+│   ├── data.js              # servicios de dominio (réplica de los legacy-actions)
+│   └── google-maps.js       # carga la Maps JS API + conversión GeoJSON
+├── composables/             # useAsyncData, useToast
+├── components/
+│   ├── ZoneMap.vue          # mapa de zonas con Google Maps
+│   └── ui/                  # StatCard, DataTable, Modal, Badge, FormField…
+├── layouts/AdminLayout.vue  # sidebar + header
+└── views/                   # Dashboard, Zonas, Tarifas, PrecioDinamico,
+                             # Conductores, Solicitudes, Viajes, Finanzas,
+                             # Administradores, Login, NotFound
+```
+
+### Acceso a datos
+- **CRUD de gestión** (tarifas, turnos, reglas de precio, zonas, solicitudes,
+  conductores) → **directo contra Firestore** con el Web SDK del usuario.
+  Las `firestore.rules` lo permiten a quien tenga rol `admin`/`superadmin`.
+- **Solo lo que necesita lógica de servidor** va por la API: la tarifa
+  autoritativa (`/api/pricing/estimate`) y la gestión de roles
+  (`/api/admin/users/:uid/role`, que valida el custom claim `superadmin`).
