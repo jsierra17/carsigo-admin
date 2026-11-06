@@ -1,4 +1,5 @@
 ﻿import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,7 +9,23 @@ import 'package:latlong2/latlong.dart';
 import 'zone_service.dart';
 
 class LocationService {
-  static String get _googleKey => dotenv.env['GOOGLE_WEB_SERVICES_KEY'] ?? '';
+  /// Clave de Google Web Services (Places / Geocoding / Directions).
+  ///
+  /// Las claves de API de Google solo admiten UNA familia de restriccion de
+  /// cliente por clave (browser | android | ios | server). Por eso hay una
+  /// clave por plataforma:
+  ///   - GOOGLE_WEB_SERVICES_KEY       -> Android (com.carsigo.app)
+  ///   - GOOGLE_WEB_SERVICES_KEY_IOS   -> iOS (com.example.carsigoMobile)
+  ///
+  /// Si falta la clave específica de iOS se cae a la genérica (que en iOS
+  /// será rechazada por Google, pero al menos no rompe el arranque).
+  static String get _googleKey {
+    if (Platform.isIOS) {
+      final iosKey = dotenv.env['GOOGLE_WEB_SERVICES_KEY_IOS'];
+      if (iosKey != null && iosKey.isNotEmpty) return iosKey;
+    }
+    return dotenv.env['GOOGLE_WEB_SERVICES_KEY'] ?? '';
+  }
 
   static Future<Position> getCurrentPosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();

@@ -24,6 +24,10 @@ dependencies:
   http: ^1.2.2
   firebase_core: ^4.13.0
   firebase_auth: ^6.5.7
+  # App Check: emite tokens de attestation (Play Integrity en Android,
+  # DeviceCheck en iOS) para que solo las apps legitimas consuman la cuota.
+  # Version 0.4.6 es la compatible con firebase_core ^4.13.0.
+  firebase_app_check: ^0.4.6
   cloud_firestore: ^6.8.0
   firebase_storage: ^13.0.0
   firebase_messaging: ^16.5.0

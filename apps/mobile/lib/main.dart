@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:carsigo_mobile/services/preferences_service.dart';
+import 'package:carsigo_mobile/services/app_check_service.dart';
 import 'package:carsigo_mobile/theme/carsigo_theme.dart';
 import 'package:carsigo_mobile/providers/theme_provider.dart';
 import 'package:carsigo_mobile/screens/onboarding/onboarding_screen.dart';
@@ -24,6 +25,10 @@ void main() async {
   await dotenv.load(fileName: ".env");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // App Check debe activarse ANTES de la primera llamada a Firestore/Auth:
+  // el token de attestation se adjunta a cada peticion.
+  await AppCheckService.initialize();
 
   // El modo claro es el predeterminado; se restaura la elección guardada.
   final themeMode = await PreferencesService.getThemeMode();

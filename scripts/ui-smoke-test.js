@@ -56,7 +56,7 @@ try {
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Referer: 'http://localhost:5173/' },
         body: JSON.stringify({ token: custom, returnSecureToken: true }),
       },
     )
