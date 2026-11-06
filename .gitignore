@@ -14,10 +14,6 @@
 # testing
 /coverage
 
-# next.js (panel migrado a Vue: solo queda por transición)
-/.next/
-/out/
-
 # vue / vite
 **/dist/
 **/.vite/
@@ -40,15 +36,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # AI agent tool dirs
 .agents/
@@ -68,15 +60,10 @@ next-env.d.ts
 .firebase/
 **/.firebase/
 
-# restos de Expo / React Native (el movil real es Flutter)
-/.expo/
-/android/
-/app.json
-
 # logs del emulador de Firebase
 firestore-debug.log
 firebase-debug.log
 
-# service account de produccion (acceso total) - se carga aparte a proposito
-.env.seed
-!.env.seed.example
+# env: solo se versiona la plantilla
+.env*
+!.env.example

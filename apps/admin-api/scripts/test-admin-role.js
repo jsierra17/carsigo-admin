@@ -16,9 +16,9 @@ const ROOT = path.resolve(API_DIR, '../..')
 const PORT = process.env.SMOKE_PORT || '4125'
 const BASE = `http://localhost:${PORT}`
 
-// Lee las claves del .env / .env.local de la raíz del monorepo
+// Lee las claves del .env / .env.production de la raíz del monorepo
 const env = {}
-for (const envFile of ['.env', '.env.local', '.env.seed']) {
+for (const envFile of ['.env', '.env.production']) {
   const full = path.join(ROOT, envFile)
   if (!fs.existsSync(full)) continue
   for (const line of fs.readFileSync(full, 'utf8').split(/\r?\n/)) {
@@ -30,7 +30,7 @@ for (const envFile of ['.env', '.env.local', '.env.seed']) {
   }
 }
 
-const API_KEY = env.NEXT_PUBLIC_FIREBASE_API_KEY
+const API_KEY = env.VITE_FIREBASE_API_KEY
 const SA_PATH = env.FIREBASE_SERVICE_ACCOUNT
 
 const results = []

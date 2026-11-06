@@ -58,15 +58,15 @@ Vite lee el `.env` / `.env.local` de la **raíz del monorepo** (`envDir`).
 Para producción, crea un `.env.production` en la raíz:
 
 ```bash
-cp .env.production.example .env.production
+cp .env.example .env.production
 ```
 
 | Variable | Dónde sacarla |
 |---|---|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project settings → Your apps |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | ídem |
-| `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | Google Cloud Console → APIs & Services → Credentials |
-| `NEXT_PUBLIC_OWNER_EMAIL` | tu correo (bypass de superadmin) |
+| `VITE_FIREBASE_API_KEY` | Firebase Console → Project settings → Your apps |
+| `VITE_FIREBASE_APP_ID` | ídem |
+| `VITE_GOOGLE_MAPS_KEY` | Google Cloud Console → APIs & Services → Credentials |
+| `OWNER_EMAIL` | tu correo (bypass de superadmin) |
 
 > Se **incrustan en el bundle** en tiempo de build: si cambian, hay que
 > re-construir y re-desplegar el panel.
@@ -246,7 +246,7 @@ Y en `firebase.json`, cambia el rewrite:
 3. **Cold start**: la función tarda ~2-4 s en arrancar tras un periodo de
    inactividad. Para un panel de administración es aceptable; si molesta,
    activa `minInstanceCount: 1` (implica coste fijo).
-4. **Regla de oro**: cualquier cambio en `VITE_*` / `NEXT_PUBLIC_*` del panel
+4. **Regla de oro**: cualquier cambio en `VITE_*` del panel
    requiere **re-build + re-deploy** de Hosting.
 5. **`functions/api-src/`** es código generado: se regenera con
    `npm run prepare:functions` antes de cada deploy de functions.

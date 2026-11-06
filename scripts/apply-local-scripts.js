@@ -31,11 +31,11 @@ for (const key of ['deploy', 'deploy:hosting', 'deploy:functions', 'enable:apis'
 // 2) Anadir los nuevos
 const nuevos = {
   'deploy:prod':
-    'node scripts/confirm-prod.js && npm run build:web && npm run prepare:functions && npm run build --prefix functions && firebase deploy --config firebase.prod.json',
+    'node scripts/confirm-prod.js && npm run build:web && npm run prepare:functions && npm run build --prefix functions && firebase deploy',
   'deploy:prod:hosting':
-    'node scripts/confirm-prod.js && npm run build:web && firebase deploy --config firebase.prod.json --only hosting',
+    'node scripts/confirm-prod.js && npm run build:web && firebase deploy --only hosting',
   'deploy:prod:functions':
-    'node scripts/confirm-prod.js && npm run prepare:functions && npm run build --prefix functions && firebase deploy --config firebase.prod.json --only functions',
+    'node scripts/confirm-prod.js && npm run prepare:functions && npm run build --prefix functions && firebase deploy --only functions',
   'deploy:rules': 'firebase deploy --config firebase.json --only firestore:rules,firestore:indexes',
   'prod:enable:apis': 'node scripts/enable-apis.js',
   'quarantine:hosting': 'node scripts/unpublish-hosting.js',

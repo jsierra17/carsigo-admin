@@ -9,10 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
 
-  // Lee el .env / .env.local de la RAÍZ del monorepo (mismas variables que
-  // usaba el panel Next.js: NEXT_PUBLIC_FIREBASE_*).
+  // Lee el .env / .env.production de la RAÍZ del monorepo (variables
+  // VITE_* expuestas al bundle).
   envDir: path.resolve(__dirname, '../..'),
-  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  envPrefix: ['VITE_'],
 
   resolve: {
     alias: {

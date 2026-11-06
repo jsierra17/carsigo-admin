@@ -27,7 +27,7 @@ export const adminApi = onRequest(
     // Hash del código de la API. Fuerza al CLI de Firebase a detectar el
     // cambio y desplegar, porque por defecto solo compara la definición
     // de la función (no su implementación interna).
-    labels: { 'api-build': '73081c001cb4' },
+    labels: { 'api-build': '61c10b239d40' },
     // Cuenta de servicio con permisos plenos de Firebase Admin
     // (Firestore, Auth y Storage). Requerida porque la API usa el Admin SDK.
     serviceAccount: 'firebase-adminsdk-fbsvc@carsigo-9e508.iam.gserviceaccount.com',

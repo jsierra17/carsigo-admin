@@ -97,7 +97,7 @@ function decodePolyline(encoded) {
 
 function readRootEnv() {
   const env = {}
-  for (const file of ['.env', '.env.local']) {
+  for (const file of ['.env', '.env.production']) {
     const full = path.join(ROOT, file)
     if (!fs.existsSync(full)) continue
     for (const line of fs.readFileSync(full, 'utf8').split(/\r?\n/)) {
@@ -142,10 +142,10 @@ async function fetchRoute(key, corridor) {
 
 async function build() {
   const env = { ...readRootEnv(), ...process.env }
-  const key = env.GOOGLE_WEB_SERVICES_KEY || env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+  const key = env.GOOGLE_WEB_SERVICES_KEY || env.VITE_GOOGLE_MAPS_KEY
   if (!key) {
     throw new Error(
-      'Falta GOOGLE_WEB_SERVICES_KEY (o NEXT_PUBLIC_GOOGLE_MAPS_KEY) en el .env',
+      'Falta GOOGLE_WEB_SERVICES_KEY (o VITE_GOOGLE_MAPS_KEY) en el .env',
     )
   }
 

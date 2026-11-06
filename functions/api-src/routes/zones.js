@@ -18,7 +18,7 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Ray casting: Â¿el punto estÃ¡ dentro del anillo?
+ * Ray casting: ¿el punto está dentro del anillo?
  * @param {number} testLat @param {number} testLng
  * @param {Array<{lat:number,lng:number}>} ring
  */
@@ -57,7 +57,7 @@ function extractRings(polygons) {
  * Body: { lat, lng }
  *
  * Determina si un punto cae dentro de alguna geofence activa.
- * - `contains`: dentro del polÃ­gono principal de servicio (`boundary`).
+ * - `contains`: dentro del polígono principal de servicio (`boundary`).
  * - `contains_urban`: dentro de un corredor (`urban_polygons`) o del casco
  *   urbano (radio `urban_radius_km` alrededor de `center_lat/center_lng`).
  */

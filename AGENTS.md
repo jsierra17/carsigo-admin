@@ -22,17 +22,39 @@ This project uses **Firebase** as its backend:
 
 - **Database**: Firestore
 - **Auth**: Firebase Auth (email/password + Google OAuth)
-- **SDK (Web)**: `firebase` + `firebase-admin`
-- **SDK (Mobile)**: `firebase_*` Flutter packages
+- **SDK (Web)**: `firebase` (en `apps/admin-web`)
+- **SDK (Server)**: `firebase-admin` (en `apps/admin-api` y `functions`)
+- **SDK (Mobile)**: `firebase_*` Flutter packages (en `apps/mobile`)
+
+> ⚠️ Este proyecto **NO** usa Next.js, React, Mapbox ni Supabase.
+> Si algo en el código los menciona, es código muerto de una versión anterior.
+> Las instrucciones completas (y las prohibiciones) están en [`CLAUDE.md`](CLAUDE.md).
 
 ## Important Notes
 
 - Use Firebase client libraries, never Supabase or InsForge SDK
 - The project uses `firebase` (browser) and `firebase-admin` (server)
-- Admin SDK clients: `lib/firebase/service.ts` (admin), `lib/firebase/admin-fs.ts` (Firestore admin), `lib/firebase/rest-auth.ts` (Auth admin via REST)
-- Browser clients: `lib/firebase/client.ts`, `lib/firebase/server.ts` (SSR/cookies), `lib/firebase/firestore-compat.ts` (compat API layer)
-- Singleton for client components: `lib/db.ts`
-- API returns `{data, error}` structure for all operations
+
+### Dónde está cada cosa
+
+| Contexto | Ruta |
+|---|---|
+| Firebase Web SDK (cliente) | `apps/admin-web/src/services/firebase.js` |
+| App Check (reCAPTCHA v3) | `apps/admin-web/src/services/app-check.js` |
+| Firebase Admin SDK (servidor) | `apps/admin-api/src/lib/firebase-admin.js` |
+| Auth vía REST (servidor) | `apps/admin-api/src/lib/firebase/rest-auth.js` |
+| Config y env de la API | `apps/admin-api/src/config.js` |
+| Firebase Flutter (móvil) | `apps/mobile/lib/firebase_options.dart` + `apps/mobile/lib/services/app_check_service.dart` |
+| Reglas de Firestore | `firebase/firestore.rules` |
+| Reglas de Storage | `firebase/storage.rules` |
+| Índices de Firestore | `firebase/firestore.indexes.json` |
+| Config del CLI (única) | `firebase.json` (raíz del monorepo) |
+
+### Variables de entorno
+
+- El navegador solo ve variables con prefijo **`VITE_`** (`import.meta.env`).
+- El servidor usa variables **sin prefijo** (`FIREBASE_API_KEY`, `OWNER_EMAIL`…).
+- Ficheros: `.env` (desarrollo), `.env.production` (producción), `.env.example` (plantilla).
 
 ## Codebase Memory MCP
 

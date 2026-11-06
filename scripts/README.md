@@ -87,7 +87,7 @@ npm run test:ui
 ### Notas
 - Libera los puertos `5199`/`4199` antes de arrancar (mata instancias huérfanas).
 - Si no tienes Edge/Chrome, ajusta la constante `EDGE` en el script.
-- Requiere que el `.env` de la raíz tenga `NEXT_PUBLIC_FIREBASE_*`.
+- Requiere que el `.env` de la raíz tenga `VITE_FIREBASE_*`.
 
 ---
 
@@ -100,7 +100,7 @@ npm run test:ui
 | `fix-mojibake.js` | Repara la doble codificación UTF-8 ("MÃ³dulo" en vez de "Módulo"). Sin argumentos: recorre todo el repo. |
 | `restore-clean.js` | Restaura ficheros desde git eligiendo la versión sin mojibake (índice o HEAD). |
 | `apply-local-scripts.js` | Reaplica los scripts de modo local al `package.json` raíz (quita `deploy`, añade `deploy:prod*` con guarda). |
-| `apply-seed-env.js` | Añade `.env.seed` a la lista de ficheros de entorno que leen los scripts que usan la service account. |
+| `apply-seed-env.js` | Normaliza la lista de ficheros de entorno que leen los scripts (`['.env', '.env.production']`). |
 | `confirm-prod.js` | **Puerta de seguridad**: aborta el despliegue a producción salvo que se pase `CONFIRM_PROD=1` o `--yes`. |
 | `unpublish-hosting.js` | Despublica el Hosting (borra releases y versions). Necesario porque el `DEFAULT_SITE` no se puede eliminar. Acepta `--dry-run`. |
 | `infra-readonly-audit.js` | Inventario de infraestructura (APIs, Cloud Run, Artifact Registry, builds, schedulers). Solo peticiones GET. |

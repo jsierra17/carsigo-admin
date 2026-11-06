@@ -9,7 +9,7 @@ import { Loader } from '@googlemaps/js-api-loader'
 let loaderPromise = null
 
 export function getMapsApiKey() {
-  return import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
+  return import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
 }
 
 export function isMapsConfigured() {
@@ -28,7 +28,7 @@ export function loadGoogleMaps() {
     if (!apiKey) {
       return Promise.reject(
         new Error(
-          'Falta la clave de Google Maps. Define NEXT_PUBLIC_GOOGLE_MAPS_KEY en el .env de la raíz.',
+          'Falta la clave de Google Maps. Define VITE_GOOGLE_MAPS_KEY en el .env de la raíz.',
         ),
       )
     }

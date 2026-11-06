@@ -7,20 +7,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Prioridad de carga (la primera que exista gana; dotenv no sobreescribe
 // variables ya presentes en process.env):
 //   1. apps/admin-api/.env
-//   2. <raíz del monorepo>/.env
-//   3. <raíz del monorepo>/.env.local
-//   4. <raíz del monorepo>/.env.seed   ← service account de PRODUCCIÓN
+//   2. <raíz del monorepo>/.env          (desarrollo)
+//   3. <raíz del monorepo>/.env.production
 //
-// El paso 4 es un último recurso: contiene credenciales de producción y
-// está separado a propósito. Mientras no exista soporte de emulador
-// (ver docs/DEPLOY.md), es lo que permite que la API local arranque.
+// En producción (Cloud Functions / Cloud Run) las variables llegan del
+// runtime y dotenv no las sobreescribe.
 const ROOT = path.resolve(__dirname, '../../..')
 
 for (const envPath of [
   path.resolve(__dirname, '../.env'),
   path.resolve(ROOT, '.env'),
-  path.resolve(ROOT, '.env.local'),
-  path.resolve(ROOT, '.env.seed'),
+  path.resolve(ROOT, '.env.production'),
 ]) {
   dotenv.config({ path: envPath })
 }
@@ -28,7 +25,7 @@ for (const envPath of [
 /** Proyecto de Firebase al que se conecta realmente esta instancia. */
 export const FIREBASE_PROJECT_ID =
   process.env.FIREBASE_PROJECT_ID ||
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+  process.env.VITE_FIREBASE_PROJECT_ID ||
   process.env.GCLOUD_PROJECT ||
   'desconocido'
 

@@ -23,7 +23,7 @@ const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 
 // ── Token de administrador ────────────────────────────────────────────────
 const env = {}
-for (const file of ['.env', '.env.local', '.env.seed']) {
+for (const file of ['.env.production', '.env']) {
   const full = path.join(ROOT, file)
   if (!fs.existsSync(full)) continue
   for (const line of fs.readFileSync(full, 'utf8').split(/\r?\n/)) {
@@ -48,7 +48,7 @@ try {
   if (superadmin) {
     const custom = await auth.createCustomToken(superadmin.uid)
     const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.VITE_FIREBASE_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Referer: 'http://localhost:5173/' },

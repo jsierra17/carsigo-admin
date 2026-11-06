@@ -7,17 +7,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Prioridad de carga (la primera que exista gana; dotenv no sobreescribe
 // variables ya presentes en process.env):
 //   1. apps/admin-api/.env
-//   2. <raíz del monorepo>/.env
-//   3. <raíz del monorepo>/.env.local
+//   2. <raíz del monorepo>/.env          (desarrollo)
+//   3. <raíz del monorepo>/.env.production
+//
+// En producción (Cloud Functions / Cloud Run) las variables llegan del
+// runtime y dotenv no las sobreescribe.
 const ROOT = path.resolve(__dirname, '../../..')
 
 for (const envPath of [
   path.resolve(__dirname, '../.env'),
   path.resolve(ROOT, '.env'),
-  path.resolve(ROOT, '.env.local'),
+  path.resolve(ROOT, '.env.production'),
 ]) {
   dotenv.config({ path: envPath })
 }
+
+/** Proyecto de Firebase al que se conecta realmente esta instancia. */
+export const FIREBASE_PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID ||
+  process.env.VITE_FIREBASE_PROJECT_ID ||
+  process.env.GCLOUD_PROJECT ||
+  'desconocido'
 
 export const PORT = Number(process.env.PORT) || 4000
 

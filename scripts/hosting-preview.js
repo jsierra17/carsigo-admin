@@ -44,7 +44,7 @@ const MIME = {
 
 // ── Arranca la Admin API ──────────────────────────────────────────────────
 const env = {}
-for (const file of ['.env', '.env.local']) {
+for (const file of ['.env', '.env.production']) {
   const full = path.join(ROOT, file)
   if (!fs.existsSync(full)) continue
   for (const line of fs.readFileSync(full, 'utf8').split(/\r?\n/)) {

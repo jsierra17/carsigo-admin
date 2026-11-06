@@ -18,8 +18,8 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 }
 
 /**
- * Extrae la Ãºltima ubicaciÃ³n conocida del conductor.
- * Soporta varias formas de almacenamiento segÃºn cÃ³mo se haya escrito el perfil.
+ * Extrae la última ubicación conocida del conductor.
+ * Soporta varias formas de almacenamiento según cómo se haya escrito el perfil.
  */
 function extractLocation(profile) {
   const candidates = [
@@ -51,7 +51,7 @@ router.get('/nearby', requireAuth, requireAdmin, readRateLimit, async (req, res,
     const radiusKm = Number.parseFloat(req.query.radius_km) || 10
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return res.status(400).json({ error: 'lat y lng son requeridos y deben ser numÃ©ricos' })
+      return res.status(400).json({ error: 'lat y lng son requeridos y deben ser numéricos' })
     }
 
     const db = getDb()
@@ -95,7 +95,7 @@ router.get('/nearby', requireAuth, requireAdmin, readRateLimit, async (req, res,
           distance_km: distance === null ? null : Math.round(distance * 100) / 100,
         }
       })
-      // Filtra por radio solo los que tienen ubicaciÃ³n conocida
+      // Filtra por radio solo los que tienen ubicación conocida
       .filter((d) => d.distance_km === null || d.distance_km <= radiusKm)
       .sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity))
 

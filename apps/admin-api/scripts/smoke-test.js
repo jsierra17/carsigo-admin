@@ -23,7 +23,7 @@ const BASE = `http://localhost:${PORT}`
 
 // ── Credenciales ──────────────────────────────────────────────────────────
 const env = {}
-for (const envFile of ['.env', '.env.local', '.env.seed']) {
+for (const envFile of ['.env', '.env.production']) {
   const full = path.join(ROOT, envFile)
   if (!fs.existsSync(full)) continue
   for (const line of fs.readFileSync(full, 'utf8').split(/\r?\n/)) {
@@ -52,7 +52,7 @@ async function mintToken(uid) {
   const auth = getAuth()
   const custom = await auth.createCustomToken(uid)
   const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.VITE_FIREBASE_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Referer: 'http://localhost:5173/' },

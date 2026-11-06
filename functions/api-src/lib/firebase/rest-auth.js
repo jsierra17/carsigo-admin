@@ -5,7 +5,7 @@
 const AUTH_REST = 'https://identitytoolkit.googleapis.com/v1'
 
 export function getFirebaseApiKey() {
-  return process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || ''
+  return process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || ''
 }
 
 /**

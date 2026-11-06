@@ -1,91 +1,134 @@
-📱 CarSiGo Mobile - Flutter Workspace
+# 📱 CarSiGo Mobile — App de pasajero y conductor (Flutter)
 
-🤖 AVISO PARA EL AGENTE DE IA (GEMINI / STUDIO BOT / CASCADE)
+> ⚠️ Este proyecto es **100 % Flutter y Dart** con **Firebase** como backend y
+> **Google Maps** para los mapas. No usa Supabase, Mapbox ni React Native.
+> Las reglas para asistentes de IA están en [`CLAUDE.md`](../../CLAUDE.md).
 
-Si eres una Inteligencia Artificial leyendo este archivo, este es tu manual operativo estricto para la Aplicación Móvil de CarSiGo.
+---
 
-Contexto: Estás dentro de la carpeta /carsigo-mobile. Este proyecto es 100% FLUTTER y DART.
+## 🤖 Contexto para asistentes de IA
 
-Backend: Nuestro backend y base de datos ya están creados en Supabase (PostgreSQL + PostGIS). Usa el paquete oficial supabase_flutter.
+Si eres una IA leyendo este archivo, este es tu manual operativo para la
+aplicación móvil de CarSiGo.
 
-Mapas: Usa mapbox_maps_flutter para la renderización de mapas.
+**Contexto:** estás dentro de `apps/mobile/`. El proyecto es Flutter + Dart.
 
-Reglas de Negocio: CarSiGo es una app de transporte hiperlocal (estilo inDrive). Comisión del 10%, saldo mínimo de billetera requerido para conductores, negociación de tarifas.
+**Backend:** Firebase (Firestore + Firebase Auth + Firebase Storage +
+Firebase Messaging). Usa los paquetes oficiales `firebase_core`,
+`firebase_auth`, `cloud_firestore`, `firebase_storage`, `firebase_messaging` y
+`firebase_app_check`.
 
-🛠️ Stack Tecnológico Móvil
+**Mapas:** `google_maps_flutter` (Google Maps SDK) + `geolocator` para el GPS.
+**Geocodificación y rutas:** Google Places / Geocoding / Directions vía REST.
 
-Framework: Flutter
+**Reglas de negocio:** CarSiGo es una app de transporte hiperlocal (estilo
+inDrive). Comisión del 10 %, saldo mínimo de billetera para conductores,
+negociación de tarifas.
 
-Lenguaje: Dart
+---
 
-Gestor de Estado (Sugerido): flutter_riverpod (o el que indique el desarrollador).
+## 🛠️ Stack tecnológico móvil
 
-Base de Datos & Auth: supabase_flutter
+| Capa | Tecnología |
+|---|---|
+| Framework | Flutter 3.10+ |
+| Lenguaje | Dart |
+| Estado | Riverpod 2 (`flutter_riverpod`) |
+| Base de datos y auth | Firebase (Firestore + Firebase Auth) |
+| Mapas y GPS | `google_maps_flutter`, `geolocator` |
+| Ubicación / rutas | Google Places / Geocoding / Directions (REST) |
+| Push | `firebase_messaging` |
+| Seguridad | `firebase_app_check` (Play Integrity en Android, DeviceCheck en iOS) |
 
-Mapas & GPS: mapbox_maps_flutter, geolocator
+---
 
-📂 Estructura de Carpetas Propuesta (lib/)
+## 📂 Estructura de `lib/`
 
-Deberás seguir esta arquitectura limpia al crear archivos:
+```
+lib/
+├── main.dart                # Entry point: Firebase + App Check + tema + AuthGate
+├── firebase_options.dart    # Config de Firebase (generada por FlutterFire CLI)
+├── models/
+│   ├── trip.dart            # Modelo Trip
+│   └── user_profile.dart    # Modelo UserProfile
+├── providers/
+│   ├── auth_provider.dart   # Riverpod providers de auth
+│   └── theme_provider.dart  # Riverpod provider del tema claro/oscuro
+├── screens/
+│   ├── onboarding/          # Onboarding + Google Sign-In
+│   ├── auth/                # Login (email + Google)
+│   ├── passenger/           # Home del pasajero + búsqueda de destino
+│   ├── driver/              # Home del conductor
+│   ├── profile_screen.dart  # Perfil y ajustes
+│   └── trip_history_screen.dart
+├── services/
+│   ├── auth_service.dart          # Auth (email, Google, custom claims)
+│   ├── location_service.dart      # Places / Geocoding / Directions
+│   ├── zone_service.dart          # Zonas de servicio (geofences)
+│   ├── trip_service.dart          # Solicitudes y aceptar viajes
+│   ├── pricing_engine.dart        # Cálculo de tarifa
+│   ├── map_markers.dart           # Marcadores del mapa
+│   ├── preferences_service.dart   # Preferencias locales
+│   ├── recent_destinations.dart   # Destinos recientes
+│   └── app_check_service.dart     # Play Integrity / DeviceCheck
+└── theme/carsigo_theme.dart  # Tema Material 3 de la marca
+```
 
-/lib
- ├── /screens        # Pantallas completas (UI)
- │    ├── /auth      # Login, Registro, Validación OTP
- │    ├── /passenger # Flujo del pasajero (Pedir viaje, mapa)
- │    └── /driver    # Flujo del conductor (Ofertas, billetera)
- ├── /widgets        # Componentes UI reutilizables (Botones, Tarjetas)
- ├── /services       # Conexión externa (Supabase, Mapbox, API Registraduría)
- ├── /models         # Clases de datos (Usuario, Viaje, Geocerca)
- ├── /providers      # Gestión del estado global (Riverpod)
- └── main.dart       # Punto de entrada de la app
+---
 
+## 🔑 Variables de entorno
 
-🚀 ROADMAP DE EJECUCIÓN MÓVIL (Paso a Paso)
+`apps/mobile/.env` (ignorado por git,usa `.env.example` como plantilla):
 
-🚧 Fase 3: Base de la App y Autenticación
+| Variable | Descripción |
+|---|---|
+| `GOOGLE_WEB_SERVICES_KEY` | API key de Google Web Services **para Android** (`com.carsigo.app`) |
+| `GOOGLE_WEB_SERVICES_KEY_IOS` | API key de Google Web Services **para iOS** (`com.example.carsigoMobile`) |
+| `GOOGLE_WEB_CLIENT_ID` | Client ID OAuth de Google (web) |
+| `GOOGLE_IOS_CLIENT_ID` | Client ID OAuth de Google (iOS) |
 
-Objetivo: Levantar el cascarón de la app y permitir el acceso de usuarios.
+> Las API keys de Google solo admiten **una** familia de restricción de cliente
+> por clave (browser | android | ios | server), así que hacen falta **dos**
+> claves de Web Services: una por plataforma. `location_service.dart` elige la
+> correcta según `Platform.isIOS`.
 
-[ ] Limpiar el main.dart por defecto.
+---
 
-[ ] Configurar supabase_flutter en el main() con la URL y la Anon Key.
+## 🚀 Estado de implementación
 
-[ ] Crear el sistema de rutas (Navegación) para separar flujos: Pantalla de Pasajeros vs Pantalla de Conductores.
+### ✅ Hecho
 
-[ ] Crear la UI de Login (Registro con Teléfono OTP y/o Google).
+- [x] Bootstrap de Firebase (`firebase_core`) y App Check (`firebase_app_check`).
+- [x] Onboarding con Google Sign-In.
+- [x] Login con email/contraseña.
+- [x] Selección de rol (pasajero / conductor) sobre `users`.
+- [x] Home del pasajero con mapa y búsqueda de destino (Google Places).
+- [x] Home del conductor con nearby yacceptación de solicitudes.
+- [x] Geocodificación y cálculo de ruta (Geocoding + Directions).
+- [x] Historial de viajes y perfil.
+- [x] Tema claro/oscuro persistido.
+- [x] Carga de documentos del conductor a Firebase Storage.
 
-[ ] Crear la UI de "Postulación a Conductor" (Subir fotos de Cédula y Licencia a Supabase Storage).
+### 🚧 Pendiente
 
-🚧 Fase 4: Mapas y Motor de Viajes (Tiempo Real)
+- [ ] Solicitud de viaje con negociación de tarifa inDrive (oferta/contraoferta).
+- [ ] Tracking GPS en tiempo real del viaje.
+- [ ] Pagos integrados y billetera del conductor en la app.
+- [ ] Chat pasajero-conductor.
+- [ ] Push real configurado (FCM) — falta el servidor emisor.
 
-Objetivo: Flujo hiperlocal tipo inDrive (Oferta/Contraoferta).
+---
 
-[ ] Integrar mapbox_maps_flutter en la pantalla principal.
+## 🧪 Comandos
 
-[ ] Obtener ubicación GPS real del usuario (geolocator).
+```bash
+cd apps/mobile
+flutter pub get        # Instalar dependencias
+flutter run            # Ejecutar en dispositivo/emulador
+flutter build apk      # Build Android
+flutter build ios      # Build iOS
+flutter analyze        # Análisis estático
+```
 
-[ ] Regla Backend: Validar si el origen del usuario choca contra un polígono de la tabla Geofences (PostGIS) antes de permitirle pedir un viaje.
-
-[ ] Implementar Supabase Realtime (WebSockets en Dart) para emitir solicitudes de viaje a conductores cercanos.
-
-[ ] UI de ofertas: El pasajero ve tarjetas de conductores ofertando y elige uno.
-
-[ ] Pantalla de ingreso del PIN de 4 dígitos para iniciar viaje.
-
-🚧 Fase 5: Motor Financiero (La Billetera Móvil)
-
-Objetivo: Gestión de saldos desde la app del conductor.
-
-[ ] Leer el balance de la tabla Wallets en Supabase.
-
-[ ] Lógica de bloqueo UI: Si Wallet.balance < 5000, mostrar pantalla de "Saldo Insuficiente" y detener escucha de nuevos viajes vía WebSockets.
-
-[ ] Ejecutar penalidad: Notificar al backend si el conductor cancela el viaje estando a menos de 800m del destino.
-
-🚧 Fase 6: Seguridad Anti-Fraude
-
-Objetivo: Proteger a los pasajeros y conductores.
-
-[ ] Integrar cámara nativa de Flutter para tomar Selfies obligatorias de biometría.
-
-[ ] UI del Botón de Pánico Inteligente (Opción A: Policía, Opción B: Ambulancia).
+> La app **no arranca sin `apps/mobile/.env`**: `dotenv.load(fileName: ".env")`
+> falla si no existe.

@@ -6,7 +6,7 @@ import { notFound, errorHandler } from './middleware/error-handler.js'
 import { rateLimit } from './middleware/rate-limit.js'
 
 /**
- * Factory de la aplicaciÃ³n Express.
+ * Factory de la aplicación Express.
  * Se exporta separada de `index.js` para poder testearla sin abrir un puerto.
  */
 export function createApp() {
@@ -23,7 +23,7 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, callback) {
-        // Sin Origin = llamada server-to-server, curl, Postman, o a travÃ©s
+        // Sin Origin = llamada server-to-server, curl, Postman, o a través
         // del proxy de Vite (que elimina el Origin).
         if (!origin) return callback(null, true)
         if (ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)) {
@@ -53,7 +53,7 @@ export function createApp() {
     next()
   })
 
-  // Logger mÃ­nimo
+  // Logger mínimo
   app.use((req, res, next) => {
     const started = Date.now()
     res.on('finish', () => {

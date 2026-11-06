@@ -14,7 +14,7 @@ export const VALID_ROLES = ['admin', 'superadmin', 'conductor', 'passenger']
  *
  * Actualiza el rol del usuario en dos lugares:
  *   1. Custom claims de Firebase Auth  â†’ `admin.auth().setCustomUserClaims()`
- *      (de ahÃ­ lee `decodedToken.role` el resto de la API).
+ *      (de ahí lee `decodedToken.role` el resto de la API).
  *   2. Documento `users/{uid}.role` en Firestore â†’ para las consultas del panel.
  */
 router.post('/users/:uid/role', requireAuth, requireSuperAdmin, writeRateLimit, async (req, res, next) => {
@@ -24,7 +24,7 @@ router.post('/users/:uid/role', requireAuth, requireSuperAdmin, writeRateLimit, 
 
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
-        error: 'Rol invÃ¡lido',
+        error: 'Rol inválido',
         detail: `Valores permitidos: ${VALID_ROLES.join(', ')}`,
       })
     }
@@ -66,7 +66,7 @@ router.post('/users/:uid/role', requireAuth, requireSuperAdmin, writeRateLimit, 
 /**
  * GET /api/admin/users/:uid
  * Headers: Authorization: Bearer <idToken>
- * Lee el usuario desde Auth + Firestore (Ãºtil para depurar roles).
+ * Lee el usuario desde Auth + Firestore (útil para depurar roles).
  */
 router.get('/users/:uid', requireAuth, async (req, res, next) => {
   try {
