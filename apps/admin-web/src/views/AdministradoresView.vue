@@ -7,7 +7,7 @@
  * Firebase Auth + el espejo en `users/{uid}.role`.
  */
 import { onMounted, ref } from 'vue'
-import { Pencil, Power, ShieldCheck } from 'lucide-vue-next'
+import { Pencil, Plus, Power, ShieldCheck } from 'lucide-vue-next'
 import DataTable from '../components/ui/DataTable.vue'
 import Modal from '../components/ui/Modal.vue'
 import Badge from '../components/ui/Badge.vue'
@@ -95,6 +95,16 @@ async function toggle(item) {
       <ShieldCheck :size="16" class="shrink-0" />
       Solo un <strong>super admin</strong> puede cambiar roles o crear administradores.
     </div>
+
+    <!-- Botón Crear Administrador (solo superadmin) -->
+    <button
+      v-if="authStore.isSuperAdmin"
+      class="inline-flex items-center gap-2 rounded-lg bg-carsigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-carsigo-700"
+      @click="alert('Crear administrador en desarrollo')"
+    >
+      <Plus :size="16" />
+      Crear administrador
+    </button>
 
     <DataTable
       :columns="columns"

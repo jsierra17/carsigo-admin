@@ -1,9 +1,9 @@
 <script setup>
 /**
  * Vista de inicio de sesión.
- *
+ * 
  * El login se resuelve en el CLIENTE con el Firebase Web SDK
- * (`signInWithPopup` para Google, `signInWithEmailAndPassword` para email).
+ * (`signInWithEmailAndPassword` para email).
  * No hay backend de autenticación: el panel obtiene el ID token y lo envía
  * a la Admin API como `Authorization: Bearer <idToken>`.
  */
@@ -18,21 +18,27 @@ const route = useRoute()
 
 const email = ref('')
 const password = ref('')
-const mode = ref('email') // 'email' | 'google'
 const submitting = ref(false)
+const errorMessage = ref('')
 
 async function submit() {
+  // Limpia el error previo antes de intentar autenticar.
+  errorMessage.value = ''
+  authStore.error = null
+
   submitting.value = true
   try {
-    if (mode.value === 'google') {
-      await authStore.signInWithGoogle()
-    } else {
-      await authStore.signInWithEmail(email.value, password.value)
-    }
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-    router.push(redirect)
-  } catch {
-    // El error ya quedó en authStore.error
+    const ok = await authStore.login(email.value, password.value)
+
+    // Redirigir a la ruta pedida (si viene de un guard) o al dashboard.
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    await router.replace(redirect && redirect.startsWith('/') && !redirect.startsWith('/login')
+      ? redirect
+      : '/dashboard')
+    return ok
+  } catch (e) {
+    // Mensaje claro en pantalla (ya humanizado por el store).
+    errorMessage.value = e?.message || 'No se pudo iniciar sesión. Inténtalo de nuevo.'
   } finally {
     submitting.value = false
   }
@@ -52,24 +58,9 @@ async function submit() {
         class="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm"
         @submit.prevent="submit"
       >
-        <button
-          type="button"
-          class="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-          :disabled="submitting"
-          @click="mode = 'google'; submit()"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z" />
-            <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3a7.2 7.2 0 0 1-10.7-3.8h-4v3.1A12 12 0 0 0 12 24Z" />
-            <path fill="#FBBC05" d="M5.3 14.3a7.1 7.1 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1Z" />
-            <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1A7.2 7.2 0 0 1 12 4.8Z" />
-          </svg>
-          Continuar con Google
-        </button>
-
         <div class="flex items-center gap-3 text-xs text-neutral-400">
           <span class="h-px flex-1 bg-neutral-200" />
-          o con email
+          Acceso exclusivo por email
           <span class="h-px flex-1 bg-neutral-200" />
         </div>
 
@@ -100,11 +91,12 @@ async function submit() {
         </div>
 
         <p
-          v-if="authStore.error"
-          class="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"
+          v-if="errorMessage || authStore.error"
+          class="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700"
+          role="alert"
         >
           <AlertCircle :size="14" class="mt-0.5 shrink-0" />
-          {{ authStore.error }}
+          <span>{{ errorMessage || authStore.error }}</span>
         </p>
 
         <button

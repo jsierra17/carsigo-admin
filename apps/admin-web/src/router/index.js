@@ -10,13 +10,25 @@ import { useAuthStore } from '../stores/auth.js'
 
 const routes = [
   {
+    path: '/',
+    name: 'home',
+    component: () => import('../views/HomeView.vue'),
+    meta: { public: true, title: 'Bienvenido' },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
     meta: { public: true, title: 'Iniciar sesión' },
   },
   {
-    path: '/',
+    path: '/terminos',
+    name: 'terminos',
+    component: () => import('../views/TermsView.vue'),
+    meta: { public: true, title: 'Términos y condiciones' },
+  },
+  {
+    path: '/dashboard',
     component: () => import('../layouts/AdminLayout.vue'),
     children: [
       {
@@ -90,8 +102,11 @@ const router = createRouter({
 })
 
 /**
- * Guarda global: exige sesión para todo lo que no sea público.
- * Tras el login se redirige a la ruta solicitada (o al dashboard).
+ * Guarda global: exige sesión Y rol de administrador para rutas privadas.
+ * - `public`: rutas accesibles sin loguear (login, landing, no encontrada).
+ * - Cualquier otra ruta requiere `isAuthenticated` Y `isValidAdmin`.
+ * Si el usuario está logueado y es admin, se redirige al dashboard a menos que ya esté ahí.
+ * Si no tiene rol admin, se cierra sesión y se manda al login.
  */
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
@@ -112,13 +127,18 @@ router.beforeEach(async (to) => {
     ? `${to.meta.title} · CarSiGo`
     : 'CarSiGo · Panel de administración'
 
+  // Rutas públicas: login, landing, not-found
   if (to.meta?.public) {
-    // Si ya está autenticado y va al login, al dashboard.
-    if (to.name === 'login' && authStore.isAuthenticated) return { name: 'dashboard' }
+    // Si ya está autenticado y es admin, redirigir al dashboard
+    if (authStore.isAuthenticated && authStore.isValidAdmin) {
+      if (to.name !== 'login') return { name: 'dashboard' }
+    }
     return true
   }
 
-  if (!authStore.isAuthenticated) {
+  // Rutas privadas: requiere autenticación y rol admin
+  if (!authStore.isAuthenticated || !authStore.isValidAdmin) {
+    authStore.signOut()
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 

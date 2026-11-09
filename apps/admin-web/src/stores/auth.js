@@ -26,6 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
   // ── Estado ──────────────────────────────────────────────────────────────
   const user = ref(null)
   const profile = ref(null)
+  const claimsRole = ref(null) // rol desde custom claims del token (fuente de verdad)
   const loading = ref(true)
   const error = ref(null)
 
@@ -36,19 +37,43 @@ export const useAuthStore = defineStore('auth', () => {
    * Rol efectivo.
    *
    * La fuente de verdad es el **custom claim** del token (`decodedToken.role`),
-   * porque es lo que la Admin API valida en cada endpoint. El campo
+   * porque es lo que la Admin API valida en cada endpoint. El objeto `User` de
+   * Firebase NO expone los claims como propiedad (`user.role` siempre es
+   * undefined); hay que leerlos con `getIdTokenResult()`. El campo
    * `users/{uid}.role` de Firestore es el espejo para las consultas del panel
-   * y puede quedar desincronizado, por eso se usa solo como respaldo.
+   * y puede quedar desincronizado, por eso se usa solo como último recurso.
    */
-  const role = computed(() => user.value?.role || profile.value?.role || null)
+  const role = computed(() => claimsRole.value || profile.value?.role || null)
 
   const isAdmin = computed(() => role.value === 'admin' || role.value === 'superadmin')
   const isSuperAdmin = computed(() => role.value === 'superadmin')
+  const isValidAdmin = computed(() => role.value === 'admin' || role.value === 'superadmin')
   const displayName = computed(
     () => profile.value?.full_name || profile.value?.name || user.value?.displayName || '',
   )
 
   // ── Acciones ────────────────────────────────────────────────────────────
+
+  /**
+   * Lee el rol de los custom claims del ID token actual (fuente de verdad).
+   * `user.role` no existe en el objeto User; los claims viven en
+   * `getIdTokenResult().claims`.
+   */
+  async function loadClaimsRole() {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      claimsRole.value = null
+      return null
+    }
+    try {
+      const tokenResult = await currentUser.getIdTokenResult()
+      claimsRole.value = tokenResult.claims?.role || null
+    } catch (e) {
+      console.warn('[auth] no se pudieron leer los custom claims:', e)
+      claimsRole.value = null
+    }
+    return claimsRole.value
+  }
 
   /** Carga el perfil de Firestore (`users/{uid}`). */
   async function loadProfile(uid) {
@@ -90,26 +115,57 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /** Login con email y contraseña. */
-  async function signInWithEmail(email, password) {
+  /**
+   * Login con email y contraseña.
+   *
+   * - `@returns {Promise<boolean>}` true si el login fue correcto y el
+   *   usuario es admin/superadmin.
+   * - `@throws {Error}` con mensaje legible si Firebase rechaza las
+   *   credenciales o el usuario no tiene rol de administrador.
+   */
+  async function login(email, password) {
     error.value = null
     loading.value = true
     try {
       const result = await signInWithEmailAndPassword(auth, email, password)
       user.value = result.user
+
+      // Forzar renovación del token: los custom claims (role) no llegan en
+      // el primer token emitido justo tras el sign-in, solo tras refresh.
+      await result.user.getIdToken(true)
+
+      // Leer el rol desde los claims del token renovado (fuente de verdad).
+      await loadClaimsRole()
+
       await loadProfile(result.user.uid)
-      return result.user
+
+      if (!isValidAdmin.value) {
+        // No es admin: desloguear de inmediato y explicar por qué no entra.
+        await firebaseSignOut(auth)
+        user.value = null
+        profile.value = null
+        throw new Error('Tu cuenta no tiene permisos de administrador.')
+      }
+
+      return true
     } catch (e) {
-      error.value = humanizeAuthError(e)
-      throw e
+      const message = humanizeAuthError(e)
+      error.value = message
+      throw new Error(message)
     } finally {
       loading.value = false
     }
   }
 
+  /** Alias para compatibilidad con llamadas existentes. */
+  async function signInWithEmail(email, password) {
+    await login(email, password)
+  }
+
   /** Cierre de sesión. */
   async function signOut() {
     error.value = null
+    claimsRole.value = null
     try {
       await firebaseSignOut(auth)
     } catch (e) {
@@ -135,7 +191,23 @@ export const useAuthStore = defineStore('auth', () => {
   onAuthStateChanged(auth, async (firebaseUser) => {
     user.value = firebaseUser
     if (firebaseUser) {
+      // Renovar el token para recoger custom claims (role) que no llegan en
+      // el token emitido justo después del sign-in, y evitar que el rol se
+      // detecte como null y se cierre la sesión por error.
+      try {
+        await firebaseUser.getIdToken(true)
+      } catch (e) {
+        console.warn('[auth] no se pudo renovar el token:', e)
+      }
+      // Rol desde los custom claims del token (fuente de verdad), antes de
+      // validar admin para no cerrar la sesión por un rol leído como null.
+      await loadClaimsRole()
       await loadProfile(firebaseUser.uid)
+      // Si el usuario no es admin/superadmin, cerrar sesión inmediatamente
+      if (!isValidAdmin.value) {
+        await signOut()
+        profile.value = null
+      }
     } else {
       profile.value = null
     }
@@ -151,11 +223,14 @@ export const useAuthStore = defineStore('auth', () => {
     role,
     isAdmin,
     isSuperAdmin,
+    isValidAdmin,
     displayName,
     loadProfile,
+    loadClaimsRole,
     refreshToken,
     signInWithGoogle,
     signInWithEmail,
+    login,
     signOut,
     changePassword,
     requestPasswordReset,

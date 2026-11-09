@@ -12,10 +12,6 @@ export function getMapsApiKey() {
   return import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
 }
 
-export function isMapsConfigured() {
-  return Boolean(getMapsApiKey())
-}
-
 /**
  * @returns {Promise<typeof google.maps>}
  */
@@ -36,52 +32,20 @@ export function loadGoogleMaps() {
       apiKey,
       version: 'weekly',
       libraries: ['geometry'],
-    }).load()
+    }).load().then((result) => {
+      // js-api-loader resuelve con el namespace, pero en algunos escenarios
+      // (doble carga, HMR, sdk bootstrapping) el objeto aún no tiene las
+      // clases. Validar el constructor evita "maps.Map is not a constructor".
+      const mapsApi = window.google?.maps || result
+      if (!mapsApi || typeof mapsApi.Map !== 'function') {
+        throw new Error(
+          'Google Maps JS API se cargó sin el constructor google.maps.Map. Revisa la clave, las restricciones por dominio y que no haya otra carga de la API en la página.',
+        )
+      }
+      loaderPromise = Promise.resolve(mapsApi)
+      return mapsApi
+    })
   }
   return loaderPromise
 }
 
-/**
- * Convierte un GeoJSON (string u objeto) en una lista de anillos de
- * `{ lat, lng }`. Soporta Polygon y MultiPolygon.
- * @returns {Array<Array<{lat:number,lng:number}>>}
- */
-export function geoJsonToPaths(geojson) {
-  if (!geojson) return []
-  let parsed = geojson
-  if (typeof geojson === 'string') {
-    try {
-      parsed = JSON.parse(geojson)
-    } catch {
-      return []
-    }
-  }
-  if (!parsed || !parsed.coordinates) return []
-
-  const polygons = parsed.type === 'MultiPolygon' ? parsed.coordinates : [parsed.coordinates]
-  return polygons
-    .map((poly) => poly?.[0])
-    .filter((ring) => Array.isArray(ring) && ring.length >= 3)
-    .map((ring) => ring.map(([lng, lat]) => ({ lat, lng })))
-}
-
-/**
- * Convierte una lista de puntos `{lat,lng}` en un GeoJSON Polygon.
- * @returns {string} GeoJSON serializado
- */
-export function pathsToGeoJson(paths) {
-  const ring = paths.map((p) => [p.lng, p.lat])
-  if (ring.length > 0) ring.push(ring[0])
-  return JSON.stringify({
-    type: 'Polygon',
-    coordinates: [ring],
-  })
-}
-
-/** Centro (lat/lng) de una lista de puntos. */
-export function centerOf(paths) {
-  if (!paths?.length) return null
-  const lat = paths.reduce((s, p) => s + p.lat, 0) / paths.length
-  const lng = paths.reduce((s, p) => s + p.lng, 0) / paths.length
-  return { lat, lng }
-}

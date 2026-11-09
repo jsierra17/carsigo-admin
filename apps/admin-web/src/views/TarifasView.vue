@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import Badge from '../components/ui/Badge.vue'
 import FormField from '../components/ui/FormField.vue'
 import { tarifasService } from '../services/data.js'
+import { describeFirestoreError } from '../services/firestore.js'
 import { useAsyncData } from '../composables/useAsyncData.js'
 import { useToast } from '../composables/useToast.js'
 
@@ -33,7 +34,20 @@ const copyForm = ref({ source: '', target: '' })
 const migrateOpen = ref(false)
 const busy = ref(false)
 
-const zoneName = (id) => zones.value.find((z) => z.id === id)?.municipality_name || id || '—'
+/**
+ * Las tarifas referencian la zona por SLUG (rate_cards.zone_id =
+ * 'el-carmen-de-bolivar'), no por doc id de geofences. El selector y el
+ * filtrado usan el slug como clave; el doc id queda de respaldo para datos
+ * legacy que no tengan slug.
+ */
+const zoneKey = (z) => z.slug || z.id
+
+const zoneName = (id) =>
+  zones.value.find((z) => zoneKey(z) === id)?.municipality_name || id || '—'
+
+const errorBox = computed(() =>
+  data.error.value ? describeFirestoreError(data.error.value) : null,
+)
 
 const visibleCards = computed(() =>
   selectedZone.value ? cards.value.filter((c) => c.zone_id === selectedZone.value) : cards.value,
@@ -69,6 +83,12 @@ const scheduleColumns = [
   { key: 'actions', label: '', align: 'right' },
 ]
 
+/**
+ * Card vacía con SOLO los campos que consume el motor de precios (API y
+ * móvil): base_fee, minimum_fare, included_km, tiers y commission_percent.
+ * Los campos legacy (`price_per_km`, `price_per_minute`, waiting…, que el
+ * motor ignora) NO se incluyen ni se muestran en el panel.
+ */
 const emptyCard = () => ({
   id: null,
   name: '',
@@ -81,11 +101,6 @@ const emptyCard = () => ({
   tier2_max_km: 8,
   tier2_rate_per_km: 1200,
   commission_percent: 12,
-  price_per_km: 0,
-  price_per_minute: 0,
-  free_waiting_minutes: 5,
-  waiting_price_per_minute: 200,
-  extra_km_percent: 0,
   zone_id: selectedZone.value || zones.value[0]?.id || '',
   is_active: true,
 })
@@ -143,6 +158,14 @@ async function save() {
       if (modal.value.item) await tarifasService.updateCard(modal.value.item.id, payload)
       else await tarifasService.createCard(payload)
     } else {
+      // Sincroniza el doble campo heredado: el motor de precios (API y móvil)
+      // lee `start_time`||`shift_start` y `window_label`||`shift_label` con
+      // preferencia por el primero. Si solo se escribiera shift_*, los
+      // cambios hechos desde la web serían ignorados silenciosamente.
+      payload.start_time = payload.shift_start
+      payload.end_time = payload.shift_end
+      payload.window_label = payload.shift_label
+
       if (modal.value.item) await tarifasService.updateSchedule(modal.value.item.id, payload)
       else await tarifasService.createSchedule(payload)
     }
@@ -253,6 +276,24 @@ async function doMigrate() {
       </div>
     </div>
 
+    <!-- Error de carga (ej. índice compuesto faltante) -->
+    <div
+      v-if="errorBox"
+      class="rounded-xl border border-amber-300 bg-amber-50 p-4"
+    >
+      <p class="text-sm font-semibold text-amber-800">{{ errorBox.title }}</p>
+      <p class="mt-1 text-sm text-amber-700">{{ errorBox.detail }}</p>
+      <a
+        v-if="errorBox.indexUrl"
+        :href="errorBox.indexUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-2 inline-block rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+      >
+        Crear índice en Firebase Console
+      </a>
+    </div>
+
     <!-- Filtro de zona + pestañas -->
     <div class="flex flex-wrap items-center gap-3">
       <div class="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5">
@@ -281,7 +322,7 @@ async function doMigrate() {
           class="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-carsigo-500"
         >
           <option value="">Todas las zonas</option>
-          <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.municipality_name }}</option>
+          <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">{{ z.municipality_name }}</option>
         </select>
       </label>
     </div>
@@ -450,28 +491,12 @@ async function doMigrate() {
             class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-carsigo-500"
           />
         </FormField>
-        <FormField label="Minutos de espera gratis">
-          <input
-            v-model.number="form.free_waiting_minutes"
-            type="number"
-            min="0"
-            class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-carsigo-500"
-          />
-        </FormField>
-        <FormField label="$ por minuto de espera">
-          <input
-            v-model.number="form.waiting_price_per_minute"
-            type="number"
-            min="0"
-            class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-carsigo-500"
-          />
-        </FormField>
         <FormField label="Zona" required>
           <select
             v-model="form.zone_id"
             class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-carsigo-500"
           >
-            <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.municipality_name }}</option>
+            <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">{{ z.municipality_name }}</option>
           </select>
         </FormField>
       </div>
@@ -553,7 +578,7 @@ async function doMigrate() {
             v-model="form.zone_id"
             class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-carsigo-500"
           >
-            <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.municipality_name }}</option>
+            <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">{{ z.municipality_name }}</option>
           </select>
         </FormField>
       </div>
@@ -584,7 +609,7 @@ async function doMigrate() {
             class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-carsigo-500"
           >
             <option value="">Selecciona…</option>
-            <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.municipality_name }}</option>
+            <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">{{ z.municipality_name }}</option>
           </select>
         </FormField>
         <FormField label="Zona destino" required>
@@ -593,7 +618,7 @@ async function doMigrate() {
             class="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-carsigo-500"
           >
             <option value="">Selecciona…</option>
-            <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.municipality_name }}</option>
+            <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">{{ z.municipality_name }}</option>
           </select>
         </FormField>
       </div>

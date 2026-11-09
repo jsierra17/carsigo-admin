@@ -22,6 +22,16 @@ import { firebaseApp } from './firebase.js'
 /** Clave de reCAPTCHA v3; vacía = App Check no se activa (entorno local). */
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
 
+/** 
+ * @dev En modo desarrollo, se habilita el token de depuración para evitar 
+ *      bloqueos por App Check en entornos locales. 
+ *      Esto permite usar un token de depuración temporal en Firebase Console.
+ */
+if (import.meta.env.DEV) {
+  // @ts-ignore - añadir propiedad global temporal
+  self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
+}
+
 /** Dominios permitidos por App Check (deben estar registrados en la consola). */
 const ALLOWED_HOSTNAMES = [
   'carsigo-9e508.web.app',
@@ -33,6 +43,14 @@ const ALLOWED_HOSTNAMES = [
  * @returns {boolean} true si App Check quedó inicializado.
  */
 export function initAppCheck() {
+  // Modo local/dev: se salta App Check por completo. No se intenta validar
+  // reCAPTCHA ni emitir tokens; el proyecto de dev queda desprotegido a
+  // propósito para no bloquear el desarrollo.
+  if (import.meta.env.DEV) {
+    console.info('[app-check] Modo DEV: App Check desactivado.')
+    return false
+  }
+
   if (!RECAPTCHA_SITE_KEY) {
     // Sin site key no hay App Check. Es lo esperado en local/dev: no se
     // rompe nada, pero tampoco se protege. En producción debe fallar alto.

@@ -4,7 +4,7 @@ defineProps({
   label: { type: String, required: true },
   value: { type: [Number, String], default: 0 },
   hint: { type: String, default: '' },
-  icon: { type: Object, default: null },
+  icon: { type: [Object, Function], default: null },
   tone: { type: String, default: 'default' },
 })
 

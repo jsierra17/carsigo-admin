@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getAdminAuth, getDb } from '../lib/firebase-admin.js'
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js'
+import { requireAuth, requireAdmin, requireSuperAdmin } from '../middleware/auth.js'
 import { writeRateLimit } from '../middleware/rate-limit.js'
 
 const router = Router()
@@ -67,8 +67,10 @@ router.post('/users/:uid/role', requireAuth, requireSuperAdmin, writeRateLimit, 
  * GET /api/admin/users/:uid
  * Headers: Authorization: Bearer <idToken>
  * Lee el usuario desde Auth + Firestore (útil para depurar roles).
+ * Solo admin/superadmin: el Admin SDK ignora las firestore.rules, así que
+ * sin este middleware cualquier usuario autenticado leería cualquier perfil.
  */
-router.get('/users/:uid', requireAuth, async (req, res, next) => {
+router.get('/users/:uid', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const { uid } = req.params
     const auth = getAdminAuth()

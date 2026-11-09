@@ -199,11 +199,16 @@ class PricingEngine {
 
     // Resolución de zona: el zone_id de precios es el slug del municipio
     // (ej. 'el-carmen-de-bolivar'), independiente del id interno del geofence.
+    // FIX: consultar por campo 'slug' porque el doc ID no es el slug.
     Map<String, dynamic>? zoneGeo;
     if (zoneId != null) {
       try {
-        final zoneSnap = await _firestore.collection('geofences').doc(zoneId).get();
-        zoneGeo = zoneSnap.data();
+        final zoneSnap = await _firestore
+            .collection('geofences')
+            .where('slug', isEqualTo: zoneId)
+            .limit(1)
+            .get();
+        zoneGeo = zoneSnap.docs.isNotEmpty ? zoneSnap.docs.first.data() : null;
       } catch (e) {
         debugPrint('geofence fetch error: $e');
       }

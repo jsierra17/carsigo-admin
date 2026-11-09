@@ -7,6 +7,12 @@ import './style.css'
 
 const app = createApp(App)
 
+// Manejador global de errores para ver errores en la consola en lugar de pantalla blanca
+app.config.errorHandler = (err, instance, info) => {
+  console.error('[Vue errorHandler]', err, info)
+}
+
+// Aseguramos que Pinia y Router estén listos antes de montar
 app.use(createPinia())
 app.use(router)
 

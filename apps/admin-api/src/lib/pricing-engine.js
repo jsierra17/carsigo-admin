@@ -65,15 +65,22 @@ function num(value, fallback = 0) {
 // ── Consultas nativas ──────────────────────────────────────────────────────
 
 /**
- * Resuelve la geofence por id de documento o por el campo `id`.
- * Devuelve el objeto de la zona o null.
+ * Resuelve la geofence por id de documento, campo `id` legacy o `slug`.
+ * El zone_id de precios es el slug del municipio (ej. 'el-carmen-de-bolivar'),
+ * y no hay ningún documento cuyo doc-name sea el slug — sin el lookup por
+ * `slug` el prefactor nunca encuentra la zona y por tanto los rings
+ * (techos por distancia) se ignoran silenciosamente.
  */
 async function resolveZoneGeo(db, zoneId) {
   if (!zoneId) return null
   try {
     const byDoc = await db.collection('geofences').doc(zoneId).get()
     if (byDoc.exists) return byDoc.data()
-    const byField = await db.collection('geofences').where('id', '==', zoneId).limit(1).get()
+    const [byField, bySlug] = await Promise.all([
+      db.collection('geofences').where('id', '==', zoneId).limit(1).get(),
+      db.collection('geofences').where('slug', '==', zoneId).limit(1).get(),
+    ])
+    if (!bySlug.empty) return bySlug.docs[0].data()
     return byField.empty ? null : byField.docs[0].data()
   } catch (e) {
     console.error('[pricing] geofence fetch error:', e.message)

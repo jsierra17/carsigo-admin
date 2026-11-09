@@ -10,11 +10,15 @@ import { checkRateLimit } from '../lib/rate-limit.js'
 /** Ventana por defecto: 15 minutos. */
 const WINDOW_MS = 15 * 60 * 1000
 
-/** Identificador del cliente: IP (o uid si viene autenticado). */
+/**
+ * Identificador del cliente: IP resuelta por Express (con `trust proxy`
+ * activo, `req.ip` es el primer hop NO confiable — la IP real del cliente
+ * detrás de Cloud Run/Cloud Functions). Usar `x-forwarded-for` a mano tomaría
+ * el primer valor del header, que el propio cliente puede falsificar para
+ * rotar identidad y saltarse el rate limit.
+ */
 function clientKey(req) {
-  const forwarded = req.get('x-forwarded-for')
-  const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip || 'desconocido'
-  return `${req.baseUrl || ''}${req.path || ''}:${ip}`
+  return `${req.baseUrl || ''}${req.path || ''}:${req.ip || 'desconocido'}`
 }
 
 /**

@@ -14,6 +14,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import FormField from '../components/ui/FormField.vue'
 import Badge from '../components/ui/Badge.vue'
 import { precioDinamicoService, tarifasService } from '../services/data.js'
+import { describeFirestoreError } from '../services/firestore.js'
 import { useAsyncData } from '../composables/useAsyncData.js'
 import { useToast } from '../composables/useToast.js'
 
@@ -26,6 +27,25 @@ const confirm = ref({ open: false, item: null })
 const busy = ref(false)
 
 const data = useAsyncData(() => precioDinamicoService.list())
+
+/** Filtro por zona: las reglas referencian la zona por SLUG (zone_id). */
+const selectedZone = ref('')
+
+/**
+ * Las reglas referencian la zona por SLUG (dynamic_pricing_rules.zone_id =
+ * 'el-carmen-de-bolivar'); el doc id de geofences queda de respaldo legacy.
+ */
+const zoneKey = (z) => z.slug || z.id
+
+const visibleRules = computed(() =>
+  selectedZone.value
+    ? rules.value.filter((r) => (r.zone_id || '') === selectedZone.value)
+    : rules.value,
+)
+
+const errorBox = computed(() =>
+  data.error.value ? describeFirestoreError(data.error.value) : null,
+)
 
 const RULE_TYPES = [
   { id: 'specific_date', label: 'Fecha específica' },
@@ -89,7 +109,7 @@ async function load() {
 onMounted(load)
 
 const zoneName = (id) =>
-  zones.value.find((z) => z.id === id)?.municipality_name || (id ? id : 'Global')
+  zones.value.find((z) => zoneKey(z) === id)?.municipality_name || (id ? id : 'Global')
 
 function describeSchedule(rule) {
   switch (rule.rule_type) {
@@ -109,7 +129,10 @@ function describeSchedule(rule) {
 }
 
 function openCreate() {
-  form.value = empty()
+  form.value = {
+    ...empty(),
+    zone_id: selectedZone.value || (zones.value[0] ? zoneKey(zones.value[0]) : null),
+  }
   modal.value = { open: true, item: null }
 }
 
@@ -180,9 +203,46 @@ function toggleDay(day) {
       </button>
     </div>
 
+    <!-- Error de carga (ej. índice compuesto faltante) -->
+    <div
+      v-if="errorBox"
+      class="rounded-xl border border-amber-300 bg-amber-50 p-4"
+    >
+      <p class="text-sm font-semibold text-amber-800">{{ errorBox.title }}</p>
+      <p class="mt-1 text-sm text-amber-700">{{ errorBox.detail }}</p>
+      <a
+        v-if="errorBox.indexUrl"
+        :href="errorBox.indexUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-2 inline-block rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
+      >
+        Crear índice en Firebase Console
+      </a>
+    </div>
+
+    <!-- Selector de zona -->
+    <div class="flex flex-wrap items-center gap-3">
+      <label class="flex items-center gap-2 text-sm text-neutral-600">
+        <span class="font-medium">Zona</span>
+        <select
+          v-model="selectedZone"
+          class="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-carsigo-500"
+        >
+          <option value="">Todas las zonas</option>
+          <option v-for="z in zones" :key="z.id" :value="zoneKey(z)">
+            {{ z.municipality_name }}
+          </option>
+        </select>
+      </label>
+      <span v-if="!zones.length && !data.loading.value" class="text-xs text-neutral-400">
+        Crea una zona en la vista «Zonas» para usar reglas por municipio
+      </span>
+    </div>
+
     <DataTable
       :columns="columns"
-      :rows="rules"
+      :rows="visibleRules"
       :loading="data.loading.value"
       empty-text="No hay reglas de precio dinámico"
     >

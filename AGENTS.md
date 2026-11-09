@@ -70,3 +70,25 @@ This project uses **codebase-memory-mcp** — a persistent knowledge graph of th
 - **`detect_changes`** — check what files changed since last index and update the graph incrementally.
 
   Use `get_architecture(aspects=['all'])` first to understand the project layout, then drill into specific areas with `search_graph` or `trace_path`.
+
+---
+
+## PROTOCOLO DE TRABAJO (MANDATORIO)
+
+1. **Análisis antes de actuar:** Antes de modificar cualquier archivo, debes leer y analizar el código existente relacionado. Muestra un breve resumen de lo que has entendido antes de proponer cambios.
+
+2. **Planificación con checklists:** Para cualquier tarea de 3 o más pasos (crear un componente, conectar una API, implementar una funcionalidad), debes usar la herramienta de **todolist** para desglosar el plan en pasos pequeños y verificables. No empieces a escribir código hasta que el plan esté claro.
+
+3. **Validación y pruebas:** Después de cada cambio importante, debes ejecutar las validaciones disponibles. Para el frontend (`apps/admin-web`), ejecuta `npm run build` y `npm run test:ui` si es aplicable. Para la API (`apps/admin-api`), ejecuta `npm run test:api`. Si algo falla, debes informarme y proponer una solución antes de continuar.
+
+4. **Pausa para validación del usuario:** Cuando termines una funcionalidad o un cambio significativo, detente y pídeme que lo pruebe en mi teléfono Android. No asumas que funciona; espera mi confirmación antes de pasar al siguiente paso.
+
+5. **Registro de estado:** Al final de cada sesión de trabajo, actualiza un archivo `PROGRESS.md` en la raíz del proyecto con: la fecha, lo que se completó, lo que quedó pendiente y cualquier problema encontrado.
+
+---
+
+## REGLAS DE ESTILO
+
+- Responde en español, pero mantén el código y los comentarios en inglés.
+- Sé directo y técnico. Evita lenguaje de marketing.
+- No uses emojis en las respuestas ni en la documentación.

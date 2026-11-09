@@ -16,6 +16,9 @@ service firebase.storage {
       allow write: if request.auth != null &&
         (request.auth.uid == userId || isAdmin()) &&
         request.resource.size < 8 * 1024 * 1024 &&
+        // Tipo de contenido real: evita subir documentos no-imagen con
+        // extensión .jpg/.png falsa (whitelist de nombre no basta).
+        request.resource.contentType.matches('image/') &&
         fileName.matches('(cedula_frente|cedula_reverso|propiedad|seguro|licencia|soat)\\.(jpg|jpeg|png)$');
     }
 

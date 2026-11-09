@@ -2,18 +2,28 @@
 /**
  * Zonas de servicio: mapa de cobertura + gestión de geofences.
  *
- * Permite listar, activar/desactivar y eliminar zonas, y dibujar una nueva
- * zona haciendo clic en el mapa (el polígono se guarda como `boundary`
- * (array {lat,lng}) y `boundaries` (GeoJSON)).
+ * Flujo definitivo (sin dibujo manual):
+ * - El mapa (ZoneMap) muestra los municipios del GeoJSON DANE pintados por
+ *   estado de negocio: verde (is_active: true), gris (is_active: false),
+ *   invisibles los que no están en Firestore.
+ * - Creación: el usuario busca un municipio en el mapa y, con match único,
+ *   ZoneMap emite 'create-zone' → createZoneWithTariffs() crea el geofence
+ *   (slug derivado del nombre oficial DANE) y clona las tarifas de la zona
+ *   maestra con writeBatch(s) atómicos.
+ * - Eliminación: borrado EN CASCADA (geofence + rate_cards + rate_schedules +
+ *   dynamic_pricing_rules con zone_id == slug) previa confirmación.
  */
 import { computed, onMounted, ref } from 'vue'
-import { MapPin, Pencil, Plus, Power, Trash2, X } from 'lucide-vue-next'
+import { MapPin, PencilRuler, Plus, Power, Trash2 } from 'lucide-vue-next'
 import ZoneMap from '../components/ZoneMap.vue'
 import Modal from '../components/ui/Modal.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import Badge from '../components/ui/Badge.vue'
-import { zonesService } from '../services/data.js'
-import { pathsToGeoJson } from '../services/google-maps.js'
+import {
+  createZoneWithTariffs,
+  MASTER_ZONE_SLUG,
+  zonesService,
+} from '../services/data.js'
 import { useAsyncData } from '../composables/useAsyncData.js'
 import { useToast } from '../composables/useToast.js'
 
@@ -21,16 +31,21 @@ const toast = useToast()
 
 const zones = ref([])
 const selectedId = ref(null)
-const drawing = ref(false)
-const draftPath = ref([])
 const saving = ref(false)
 const confirmOpen = ref(false)
 const zoneToDelete = ref(null)
 
-const createOpen = ref(false)
-const form = ref({ municipality_name: '', base_multiplier: 1, is_active: true })
-
 const zonesData = useAsyncData(() => zonesService.list())
+
+/* Editor de techos por distancia (geofences.rings) */
+const ringsOpen = ref(false)
+/** Copia editable del array rings: [{max_km, car, moto}] */
+const ringsForm = ref([])
+
+/** Techos del geofence de la zona; el motor de precios los lee por orden. */
+const selectedRings = computed(() =>
+  Array.isArray(selected.value?.rings) ? selected.value.rings : [],
+)
 
 const selected = computed(() => zones.value.find((z) => z.id === selectedId.value) || null)
 
@@ -41,10 +56,7 @@ const stats = computed(() => {
 
 async function load() {
   const data = await zonesData.refresh()
-  if (data) {
-    zones.value = data
-    if (!selectedId.value && data.length) selectZone(data[0].id)
-  }
+  if (data) zones.value = data
 }
 
 onMounted(load)
@@ -53,55 +65,73 @@ function selectZone(id) {
   selectedId.value = id
 }
 
-function startDrawing() {
-  drawing.value = true
-  draftPath.value = []
-  createOpen.value = false
-  toast.info('Haz clic en el mapa para delimitar la nueva zona')
+/** Abre el editor de techos con una copia editable (números normalizados). */
+function openRingsEditor() {
+  ringsForm.value = selectedRings.value.map((r) => ({
+    max_km: numOr(r?.max_km, 0),
+    car: numOr(r?.car, 0),
+    moto: numOr(r?.moto, 0),
+  }))
+  ringsOpen.value = true
 }
 
-function addVertex(point) {
-  draftPath.value = [...draftPath.value, point]
+function numOr(value, fallback) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
 }
 
-function cancelDrawing() {
-  drawing.value = false
-  draftPath.value = []
+function addRingRow() {
+  const max = ringsForm.value.at(-1)?.max_km ?? 0
+  ringsForm.value.push({ max_km: max + 2, car: 0, moto: 0 })
 }
 
-function openCreateForm() {
-  form.value = { municipality_name: '', base_multiplier: 1, is_active: true }
-  createOpen.value = true
+function removeRingRow(index) {
+  ringsForm.value.splice(index, 1)
 }
 
-async function saveDraftZone() {
-  if (draftPath.value.length < 3) {
-    toast.error('El polígono necesita al menos 3 vértices')
-    return
+async function saveRings() {
+  if (!selected.value) return
+  // Normaliza y parte: el motor de precios corta en el PRIMERO ring con
+  // distance <= max_km, así que el orden ascendente es obligatorio.
+  const rings = ringsForm.value
+    .filter((r) => r.max_km > 0)
+    .map((r) => ({
+      max_km: numOr(r.max_km, 0),
+      car: numOr(r.car, 0),
+      moto: numOr(r.moto, 0),
+    }))
+    .sort((a, b) => a.max_km - b.max_km)
+
+  try {
+    await zonesService.update(selected.value.id, { rings })
+    toast.success(`Techos de «${selected.value.municipality_name}» actualizados (${rings.length} anillo/es)`)
+    ringsOpen.value = false
+    await load()
+  } catch (e) {
+    console.error('ERROR AL GUARDAR RINGS:', e)
+    toast.error(e?.message || 'No se pudieron guardar los techos')
   }
-  if (!form.value.municipality_name.trim()) {
-    toast.error('Escribe el nombre del municipio')
-    return
-  }
+}
 
+/**
+ * Handler del evento 'create-zone' de ZoneMap (match único del buscador).
+ * Crea el geofence y clona las tarifas de la zona maestra de forma atómica.
+ */
+async function handleCreateZone(payload) {
+  console.log('1. ZonasView recibió create-zone:', payload?.municipality_name)
   saving.value = true
   try {
-    const boundaries = pathsToGeoJson(draftPath.value)
-    const boundary = draftPath.value.map((p) => ({ lat: p.lat, lng: p.lng }))
-
-    const id = await zonesService.create({
-      municipality_name: form.value.municipality_name.trim(),
-      boundaries,
-      boundary: draftPath.value.map((p) => ({ lat: p.lat, lng: p.lng })),
-      is_active: form.value.is_active,
-      base_multiplier: Number(form.value.base_multiplier) || 1,
-    })
-
-    toast.success('Zona creada')
-    cancelDrawing()
+    const { id, slug, cloned } = await createZoneWithTariffs(payload)
+    const total = cloned.rate_cards + cloned.rate_schedules + cloned.dynamic_pricing_rules
+    console.log('Zona creada OK. id:', id, '| slug:', slug, '| tarifas clonadas:', cloned)
+    toast.success(
+      `Zona «${payload.municipality_name}» creada (slug: ${slug}). ` +
+        `Tarifas clonadas de ${MASTER_ZONE_SLUG}: ${total} documento(s).`,
+    )
     await load()
     selectedId.value = id
   } catch (e) {
+    console.error('ERROR AL CREAR ZONA:', e)
     toast.error(e?.message || 'No se pudo crear la zona')
   } finally {
     saving.value = false
@@ -125,10 +155,14 @@ function askDelete(zone) {
 
 async function confirmDelete() {
   if (!zoneToDelete.value) return
+  const { id, slug, municipality_name } = zoneToDelete.value
   try {
-    await zonesService.remove(zoneToDelete.value.id)
-    toast.success('Zona eliminada')
-    if (selectedId.value === zoneToDelete.value.id) selectedId.value = null
+    const counts = await zonesService.removeCascade(id, slug)
+    const total = counts.rate_cards + counts.rate_schedules + counts.dynamic_pricing_rules
+    toast.success(
+      `Zona «${municipality_name}» eliminada junto con ${total} documento(s) de tarifas.`,
+    )
+    if (selectedId.value === id) selectedId.value = null
     zoneToDelete.value = null
     confirmOpen.value = false
     await load()
@@ -155,37 +189,11 @@ function formatDate(value) {
           {{ stats.total }} zona(s) · {{ stats.active }} activa(s) · {{ stats.inactive }} inactiva(s)
         </p>
       </div>
-      <div class="flex gap-2">
-        <button
-          v-if="!drawing"
-          class="inline-flex items-center gap-2 rounded-lg bg-carsigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-carsigo-700"
-          @click="startDrawing"
-        >
-          <Plus :size="16" />
-          Nueva zona
-        </button>
-        <template v-else>
-          <button
-            class="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-            @click="cancelDrawing"
-          >
-            <X :size="16" />
-            Cancelar
-          </button>
-          <button
-            class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-            :disabled="draftPath.length < 3"
-            @click="openCreateForm"
-          >
-            <MapPin :size="16" />
-            Guardar ({{ draftPath.length }} vértices)
-          </button>
-        </template>
-      </div>
+      <p v-if="saving" class="text-sm font-medium text-amber-600">Guardando zona…</p>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-      <!-- Lista de zonas -->
+      <!-- Lista de zonas (columna izquierda) -->
       <div class="space-y-2">
         <div
           v-if="zonesData.loading.value"
@@ -200,7 +208,9 @@ function formatDate(value) {
         >
           <MapPin :size="28" class="mx-auto text-neutral-300" />
           <p class="mt-2 text-sm font-medium text-neutral-700">No hay zonas registradas</p>
-          <p class="text-xs text-neutral-500">Crea la primera con el botón «Nueva zona».</p>
+          <p class="text-xs text-neutral-500">
+            Busca un municipio o ciudad en el mapa y pulsa «Agregar zona» para crear la primera.
+          </p>
         </div>
 
         <button
@@ -219,9 +229,8 @@ function formatDate(value) {
               <p class="truncate text-sm font-medium text-neutral-800">
                 {{ zone.municipality_name }}
               </p>
-              <p class="text-xs text-neutral-500">
-                Multiplicador {{ zone.base_multiplier ?? 1 }} ·
-                {{ formatDate(zone.created_at) }}
+              <p class="truncate text-xs text-neutral-500">
+                Slug: {{ zone.slug || '—' }} · {{ formatDate(zone.created_at) }}
               </p>
             </div>
             <Badge :label="zone.is_active ? 'active' : 'inactive'" />
@@ -246,24 +255,18 @@ function formatDate(value) {
         </button>
       </div>
 
-      <!-- Mapa -->
-      <div class="h-[520px] lg:h-[calc(100vh-16rem)]">
-        <ZoneMap
-          :zones="zones"
-          :selected-id="selectedId"
-          :draft-path="draftPath"
-          :drawing="drawing"
-          @select-zone="selectZone"
-          @add-vertex="addVertex"
-        />
-      </div>
-    </div>
+      <!-- Mapa + Detalle (columna derecha): diseño VERTICAL -->
+      <div class="space-y-4">
+        <!-- Mapa: altura fija controlada (380px) -->
+        <div class="h-[380px] rounded-xl border border-neutral-200 overflow-hidden">
+          <ZoneMap :zones="zones" @create-zone="handleCreateZone" />
+        </div>
 
-    <!-- Detalle de la zona seleccionada -->
-    <div
-      v-if="selected && !drawing"
-      class="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
-    >
+        <!-- Detalle de la zona seleccionada (debajo del mapa, ancho completo) -->
+        <div
+          v-if="selected"
+          class="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
+        >
       <h3 class="text-sm font-semibold text-neutral-800">
         {{ selected.municipality_name }}
       </h3>
@@ -288,55 +291,123 @@ function formatDate(value) {
           <dd class="font-medium text-neutral-800">{{ selected.urban_radius_km ?? '—' }} km</dd>
         </div>
       </dl>
+
+      <!-- Techos por distancia (rings): lo que el motor usa como tope -->
+      <div v-if="selectedRings.length" class="mt-4 border-t border-neutral-100 pt-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Techos por distancia (rings)
+          </h4>
+          <button
+            class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-carsigo-600 transition hover:bg-carsigo-50"
+            @click="openRingsEditor"
+          >
+            <PencilRuler :size="13" />
+            Editar techos
+          </button>
+        </div>
+        <table class="mt-2 w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-500">
+              <th class="py-1 font-medium">Hasta (km)</th>
+              <th class="py-1 font-medium">Tope carro</th>
+              <th class="py-1 font-medium">Tope moto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(ring, index) in selectedRings"
+              :key="index"
+              class="border-t border-neutral-100"
+            >
+              <td class="py-1.5 text-neutral-800">≤ {{ ring.max_km }} km</td>
+              <td class="py-1.5 font-medium text-neutral-800">
+                ${{ Number(ring.car).toLocaleString('es-CO') }}
+              </td>
+              <td class="py-1.5 font-medium text-neutral-800">
+                ${{ Number(ring.moto).toLocaleString('es-CO') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="mt-1 text-xs text-neutral-400">
+          El precio final no supera estos topes (excepto en festivos, donde el
+          multiplicador se aplica después del techo).
+        </p>
+      </div>
+    </div>
+      </div>
     </div>
 
-    <!-- Modal: datos de la nueva zona -->
-    <Modal v-model="createOpen" title="Nueva zona de servicio" size="sm">
-      <div class="space-y-3">
-        <label class="block">
-          <span class="mb-1 block text-xs font-medium text-neutral-600">
-            Nombre del municipio <span class="text-red-500">*</span>
-          </span>
+    <!-- Modal: editor de techos por distancia (rings) -->
+    <Modal v-model="ringsOpen" title="Techos por distancia" size="sm">
+      <p class="mb-3 text-xs text-neutral-500">
+        El motor corta el subtotal en el tope del primer anillo cuya distancia
+        alcanza el viaje. Guárdalos en orden ascendente (se ordenan
+        automáticamente al guardar).
+      </p>
+      <div class="space-y-2">
+        <div class="grid grid-cols-[1fr_1fr_1fr_2rem] gap-2 text-xs font-medium text-neutral-500">
+          <span>Hasta (km)</span>
+          <span>Tope carro</span>
+          <span>Tope moto</span>
+          <span />
+        </div>
+        <div
+          v-for="(ring, index) in ringsForm"
+          :key="index"
+          class="grid grid-cols-[1fr_1fr_1fr_2rem] items-center gap-2"
+        >
           <input
-            v-model="form.municipality_name"
-            type="text"
-            placeholder="Ej. El Carmen de Bolívar"
-            class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-carsigo-500 focus:ring-2 focus:ring-carsigo-100"
-          />
-        </label>
-
-        <label class="block">
-          <span class="mb-1 block text-xs font-medium text-neutral-600">
-            Multiplicador de tarifa
-          </span>
-          <input
-            v-model="form.base_multiplier"
+            v-model.number="ring.max_km"
             type="number"
-            step="0.1"
             min="0"
-            class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-carsigo-500 focus:ring-2 focus:ring-carsigo-100"
+            step="1"
+            class="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm outline-none focus:border-carsigo-500"
           />
-        </label>
-
-        <label class="flex items-center gap-2 text-sm text-neutral-700">
-          <input v-model="form.is_active" type="checkbox" class="rounded border-neutral-300" />
-          Zona activa
-        </label>
+          <input
+            v-model.number="ring.car"
+            type="number"
+            min="0"
+            step="100"
+            class="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm outline-none focus:border-carsigo-500"
+          />
+          <input
+            v-model.number="ring.moto"
+            type="number"
+            min="0"
+            step="100"
+            class="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm outline-none focus:border-carsigo-500"
+          />
+          <button
+            class="rounded p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+            title="Eliminar anillo"
+            @click="removeRingRow(index)"
+          >
+            <Trash2 :size="14" />
+          </button>
+        </div>
       </div>
+      <button
+        class="mt-3 inline-flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+        @click="addRingRow"
+      >
+        <Plus :size="13" />
+        Añadir anillo
+      </button>
 
       <template #footer>
         <button
           class="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-          @click="createOpen = false"
+          @click="ringsOpen = false"
         >
           Cancelar
         </button>
         <button
           class="rounded-lg bg-carsigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-carsigo-700 disabled:opacity-60"
-          :disabled="saving"
-          @click="saveDraftZone"
+          @click="saveRings"
         >
-          {{ saving ? 'Guardando…' : 'Guardar zona' }}
+          Guardar techos
         </button>
       </template>
     </Modal>
@@ -344,7 +415,7 @@ function formatDate(value) {
     <ConfirmDialog
       v-model="confirmOpen"
       title="Eliminar zona"
-      :message="`¿Eliminar «${zoneToDelete?.municipality_name}»? Esta acción no se puede deshacer.`"
+      message="Al eliminar esta zona, se eliminarán también sus tarifas asociadas. ¿Estás seguro?"
       confirm-label="Eliminar"
       @confirm="confirmDelete"
     />

@@ -133,7 +133,7 @@ const greeting = computed(() => {
         <h3 class="text-sm font-semibold text-neutral-700">Accesos rápidos</h3>
         <div class="grid gap-3 sm:grid-cols-2">
           <RouterLink
-            to="/solicitudes"
+            to="/dashboard/solicitudes"
             class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-carsigo-300 hover:shadow"
           >
             <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
@@ -146,7 +146,7 @@ const greeting = computed(() => {
           </RouterLink>
 
           <RouterLink
-            to="/tarifas"
+            to="/dashboard/tarifas"
             class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-carsigo-300 hover:shadow"
           >
             <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-carsigo-50 text-carsigo-600">
@@ -159,7 +159,7 @@ const greeting = computed(() => {
           </RouterLink>
 
           <RouterLink
-            to="/zonas"
+            to="/dashboard/zonas"
             class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-carsigo-300 hover:shadow"
           >
             <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
@@ -172,7 +172,7 @@ const greeting = computed(() => {
           </RouterLink>
 
           <RouterLink
-            to="/viajes"
+            to="/dashboard/viajes"
             class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-carsigo-300 hover:shadow"
           >
             <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">

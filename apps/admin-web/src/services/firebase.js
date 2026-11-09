@@ -5,7 +5,7 @@
  * como import.meta.env porque `envPrefix` incluye VITE_).
  */
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, setPersistence, browserSessionPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -32,8 +32,8 @@ export const storage = getStorage(firebaseApp)
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
-// Persistencia local: la sesión sobrevive a recargas del navegador.
-setPersistence(auth, browserLocalPersistence).catch((error) => {
+// Persistencia de sesión: la sesión se cierra al recargar la página o cerrar el navegador.
+setPersistence(auth, browserSessionPersistence).catch((error) => {
   console.error('[firebase] no se pudo establecer la persistencia:', error)
 })
 

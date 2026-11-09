@@ -25,11 +25,10 @@ export async function requireAuth(req, res, next) {
   try {
     req.user = await getAdminAuth().verifyIdToken(token)
     next()
-  } catch (error) {
-    return res.status(401).json({
-      error: 'Token inválido o expirado',
-      detail: error.message,
-    })
+  } catch {
+    // Sin `detail`: el mensaje del verifier revelaría por qué falló el token
+    // (proyecto, audience, expiración) y solo le sirve al atacante.
+    return res.status(401).json({ error: 'Token inválido o expirado' })
   }
 }
 

@@ -16,6 +16,8 @@ import {
   updateDocById,
   copyByField,
   serverTimestamp,
+  cloneZoneTariffs,
+  deleteZoneCascade,
 } from './firestore.js'
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -74,34 +76,25 @@ const normalizeName = (name) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 
+/**
+ * Genera el slug canónico de una zona a partir del nombre oficial del
+ * municipio (DANE): 'El Carmen De Bolívar' -> 'el-carmen-de-bolivar'.
+ * @param {string} name
+ * @returns {string}
+ */
+export function slugifyName(name) {
+  return normalizeName(name)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'zona'
+}
+
+/** Zona con tarifas maestras desde las que se clona al crear zonas nuevas. */
+export const MASTER_ZONE_SLUG = 'el-carmen-de-bolivar'
+
 export const zonesService = {
   list() {
     return fetchDocs('geofences', { orderBy: [['municipality_name', 'asc']] })
-  },
-
-  async create({ municipality_name, boundaries, boundary, is_active, base_multiplier }) {
-    const existing = await fetchDocs('geofences')
-    const normalized = normalizeName(municipality_name)
-    const duplicated = existing.find(
-      (z) => normalizeName(z.municipality_name) === normalized,
-    )
-    if (duplicated) {
-      throw new Error(
-        `La zona "${municipality_name.trim()}" ya está habilitada. No se permiten zonas duplicadas.`,
-      )
-    }
-
-    const id = await createDoc('geofences', {
-      municipality_name,
-      // `boundaries`: GeoJSON en string (lo dibuja el mapa del panel).
-      boundaries,
-      // `boundary`: array {lat,lng} (lo usa zone_service.dart en la app móvil).
-      boundary: boundary || [],
-      is_active,
-      base_multiplier,
-      base_multiplier_updated_at: serverTimestamp(),
-    })
-    return id
   },
 
   update(id, payload) {
@@ -115,6 +108,115 @@ export const zonesService = {
   toggleStatus(id, currentStatus) {
     return updateDocById('geofences', id, { is_active: !currentStatus })
   },
+
+  /** Cuenta las tarifas asociadas al slug (para el Aviso al eliminar). */
+  countTariffs(slug) {
+    return countZoneTariffs(slug)
+  },
+
+  /**
+   * Borrado EN CASCADA: geofences + rate_cards + rate_schedules +
+   * dynamic_pricing_rules con `zone_id == slug`, en writeBatch(s) atómicos.
+   * IMPORTANTE: las tarifas de otros slugs no se tocan.
+   */
+  removeCascade(id, slug) {
+    return deleteZoneCascade(id, slug || id)
+  },
+}
+
+/**
+ * La nueva zona se crea a partir de un feature del GeoJSON DANE:
+ * - `boundaries` (GeoJSON en string, para el panel).
+ * - `boundary` (array {lat,lng}, para zone_service.dart de la app móvil).
+ * - `slug` derivado del nombre oficial (lo usa rate_cards/rate_schedules/
+ *   dynamic_pricing_rules y el pricing engine web/móvil).
+ * - `rings` (techos por distancia) copiados de la zona maestra.
+ * - Clona inmediatamente las tarifas de la zona maestra (writeBatch atómico)
+ *   para que la nueva zona tenga tarifa completa e independiente.
+ *
+ * @param {object} input
+ * @param {string} input.municipality_name nombre para mostrar
+ * @param {string} [input.official_name] nombre oficial DANE (para el slug)
+ * @param {string} input.boundaries GeoJSON string del feature
+ * @param {Array<{lat:number,lng:number}>} input.boundary points array
+ */
+export async function createZoneWithTariffs({
+  municipality_name,
+  official_name,
+  boundaries,
+  boundary,
+}) {
+  console.log('1. Iniciando creación de zona:', municipality_name, '| boundary pts:', boundary?.length ?? 0)
+
+  // Validación del slug ANTES de escribir: Firestore rechazaría (o peor,
+  // corrompería la relación tarifa↔zona) un slug vacío o con caracteres raros.
+  const slug = slugifyName(official_name || municipality_name)
+  if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+    console.error('Slug inválido generado para:', official_name || municipality_name, '→', JSON.stringify(slug))
+    throw new Error(`No se pudo generar un slug válido para «${municipality_name}».`)
+  }
+  console.log('2. Slug validado:', slug)
+
+  const existing = await fetchDocs('geofences')
+  const normalized = normalizeName(municipality_name)
+  const duplicated = existing.find(
+    (z) => normalizeName(z.municipality_name) === normalized,
+  )
+  if (duplicated) {
+    throw new Error(
+      `La zona "${municipality_name.trim()}" ya está habilitada. No se permiten zonas duplicadas.`,
+    )
+  }
+  console.log('3. Sin duplicados (geofences leídos:', existing.length + ')')
+
+  // Techos por defecto (fallback a prueba de fallos).
+  // Si la consulta al maestro falla por cualquier motivo, la nueva zona
+  // SIEMPRE nace con los techos correctos (5/10/15 km).
+  const DEFAULT_RINGS = [
+    { max_km: 5, car: 8000, moto: 6000 },
+    { max_km: 10, car: 14000, moto: 10000 },
+    { max_km: 15, car: 20000, moto: 15000 },
+  ]
+
+  // Lee los rings de la zona maestra (buscar por campo slug, NO por document ID).
+  // El ID del maestro es '17oKw6fEKDE7vkHZkHwe'; el slug es 'el-carmen-de-bolivar'.
+  const masterZones = await fetchDocs('geofences', {
+    where: [['slug', '==', MASTER_ZONE_SLUG]],
+    limit: 1,
+  })
+  const masterZone = masterZones[0] || null
+  const masterRings = masterZone?.rings || []
+
+  // Copia profunda (snapshot independiente): si luego se editan los techos del maestro,
+  // la nueva zona NO se ve afectada, y viceversa.
+  // Fallback: si el maestro no tiene rings por lo que sea, usa DEFAULT_RINGS.
+  const sourceRings = masterRings.length ? masterRings : DEFAULT_RINGS
+  const clonedRings = JSON.parse(JSON.stringify(sourceRings))
+
+  console.log('Techos clonados para la nueva zona:', clonedRings)
+
+  const id = await createDoc('geofences', {
+    municipality_name,
+    slug,
+    // `boundaries`: GeoJSON en string (lo dibuja el mapa del panel).
+    boundaries,
+    // `boundary`: array {lat,lng} (lo usa zone_service.dart en la app móvil).
+    boundary: boundary || [],
+    // `rings`: techos por distancia heredados de la zona maestra (copia profunda).
+    rings: clonedRings,
+    is_active: true,
+    base_multiplier: 1,
+    base_multiplier_updated_at: serverTimestamp(),
+  })
+  console.log('4. Geofence creado con id:', id, '| rings heredados:', clonedRings.length)
+
+  // Clonación de tarifas: la nueva zona hereda LOS DOCUMENTOS COMPLETOS de la
+  // zona maestra con su propio zone_id (independencia total desde ya).
+  console.log('5. Clonando tarifas desde', MASTER_ZONE_SLUG, 'a', slug, '...')
+  const cloned = await cloneZoneTariffs(MASTER_ZONE_SLUG, slug)
+  console.log('6. Tarifas clonadas:', cloned)
+
+  return { id, slug, cloned }
 }
 
 // ── Tarifas (rate_cards + rate_schedules) ─────────────────────────────────
@@ -138,9 +240,9 @@ export const tarifasService = {
     })
     return zones.map((z) => ({
       id: z.id,
+      slug: z.slug || z.id,
       municipality_name: z.municipality_name,
       is_active: z.is_active,
-      slug: z.slug,
     }))
   },
 
@@ -169,7 +271,7 @@ export const tarifasService = {
     }
     if (!defaultZoneId) {
       const active = zones.find((z) => z.is_active)
-      defaultZoneId = active?.id ?? zones[0]?.id ?? null
+      defaultZoneId = active?.slug || active?.id || zones[0]?.slug || zones[0]?.id || null
     }
 
     return { cards, schedules, zones, defaultZoneId }
