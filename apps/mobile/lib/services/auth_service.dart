@@ -197,15 +197,25 @@ class AuthService {
       // Nuevos usuarios: SIEMPRE entran como pasajero (sin pantalla de
       // elección de rol). Quien quiera conducir lo solicita desde su perfil
       // y el panel admin le aprueba el rol.
+      // profile_completed = false → bloquea creación de viajes hasta rellenar datos.
+      final nameParts = (firebaseUser.displayName ??
+              firebaseUser.email?.split('@').first ??
+              '')
+          .trim()
+          .split(' ');
       await createProfile(UserProfile(
         id: firebaseUser.uid,
         phone: firebaseUser.phoneNumber ?? '',
         fullName: firebaseUser.displayName ??
-            firebaseUser.email?.split('@').first ??
-            '',
+            firebaseUser.email?.split('@').first ?? '',
+        firstName: nameParts.isNotEmpty ? nameParts.first : null,
+        lastName:
+            nameParts.length > 1 ? nameParts.sublist(1).join(' ') : null,
+        idNumber: null,
         role: UserRole.passenger,
         avatarUrl: firebaseUser.photoURL,
         createdAt: DateTime.now(),
+        profileCompleted: false,
       ));
       return;
     }
@@ -213,6 +223,7 @@ class AuthService {
     final updated = existing.copyWith(
       fullName: firebaseUser.displayName ?? existing.fullName,
       avatarUrl: firebaseUser.photoURL ?? existing.avatarUrl,
+      // profileCompleted se preserva automáticamente (no se toca en login)
     );
     await createProfile(updated);
   }

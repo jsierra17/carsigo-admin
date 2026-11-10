@@ -14,9 +14,11 @@ import '../../services/location_service.dart';
 import '../../services/map_markers.dart';
 import '../../services/pricing_engine.dart';
 import '../../services/zone_service.dart';
+import '../../data/carsigo_urban_polygon.dart';
 import '../profile_screen.dart';
 import '../trip_history_screen.dart';
 import 'place_search_screen.dart';
+import 'profile_setup_screen.dart';
 import '../../theme/carsigo_theme.dart';
 const _vehicleMotoImg = 'assets/vehicles/Moto.png';
 const _vehicleAutoImg = 'assets/vehicles/Carro.png';
@@ -79,6 +81,10 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   Color get _onPrimaryTeal => const Color(0xFF00363D);
   StreamSubscription? _tripSub;
   StreamSubscription<Position>? _posSub;
+
+  /// Throttle de la revalidacion de zona: mientras no haya cobertura no se
+  /// consulta Firestore en cada fix de GPS (cada 10 m).
+  DateTime _lastZoneCheck = DateTime.fromMillisecondsSinceEpoch(0);
   LatLng? _currentPos;
   LatLng? _pickupPos;
   LatLng? _destPos;
@@ -111,12 +117,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }
   @override
   void dispose() {
+    // Cancelar primero: los callbacks del stream pueden tocar el notifier.
+    _tripSub?.cancel();
+    _posSub?.cancel();
     _posNotifier.dispose();
     _mapCtrl?.dispose();
     _pickupCtrl.dispose();
     _destCtrl.dispose();
-    _tripSub?.cancel();
-    _posSub?.cancel();
     super.dispose();
   }
   Future<void> _initLocation() async {
@@ -138,6 +145,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       _posNotifier.value = latLng;
       _mapCtrl?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
       // La zona se valida en paralelo: no bloquea el origen ni la ruta.
+      _lastZoneCheck = DateTime.now();
       unawaited(_checkZone(pos.latitude, pos.longitude));
       // La dirección legible se rellena después (mejor etiqueta, mismos
       // puntos): si el geocode falla se conserva la etiqueta genérica.
@@ -174,8 +182,12 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       // Solo se actualiza el marcador (sin rebuild global de la pantalla).
       _posNotifier.value = _currentPos;
       // Re-evalúa cobertura si aún no hay zona, para no quedar congelado
-      // en "Servicio no disponible" por un fix inicial impreciso.
-      if (_currentZone == null) {
+      // en "Servicio no disponible" por un fix inicial impreciso. Se limita
+      // a una consulta cada 6 s para no golpear Firestore en cada fix.
+      if (_currentZone == null &&
+          DateTime.now().difference(_lastZoneCheck) >=
+              const Duration(seconds: 6)) {
+        _lastZoneCheck = DateTime.now();
         _checkZone(pos.latitude, pos.longitude);
       }
     });
@@ -363,6 +375,30 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null || _pickupPos == null || _pickupAddress == null) return;
     if (_destPos == null) return;
+
+    // ── Verificar que el perfil del pasajero esté completo ──
+    var profile = ref.read(userProfileProvider).value;
+    if (profile == null) {
+      // El provider puede seguir cargando: se espera una sola vez para no
+      // saltarse la validacion de identidad por una carrera de red.
+      try {
+        profile = await ref.read(userProfileProvider.future);
+      } catch (_) {
+        profile = null;
+      }
+    }
+    if (!mounted) return;
+    if (profile != null && !profile.profileCompleted) {
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const ProfileSetupScreen(),
+        ),
+      );
+      if (result != true) return; // Usuario canceló el formulario
+      // Recargar perfil para reflejar profile_completed = true
+      ref.invalidate(userProfileProvider);
+    }
+
     if (!_isInServiceArea(_destPos!.latitude, _destPos!.longitude) ||
         !_isInServiceArea(_pickupPos!.latitude, _pickupPos!.longitude)) {
       if (mounted) {
@@ -386,6 +422,8 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                   l2.LatLng(_destPos!.latitude, _destPos!.longitude),
                 )
               : 0.0);
+      final fareCalculated = _estimate?.finalFare ?? 0;
+      final fareOffered = _offerFare ?? fareCalculated;
       final trip = await _tripService.createTrip(
         passengerId: user.uid,
         pickupAddress: _pickupAddress!,
@@ -396,7 +434,9 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
         dropoffLng: _destPos?.longitude,
         distanceKm: distance,
         vehicleType: _vehicleType == VehicleType.car ? 'car' : 'moto',
-        fareAmount: _offerFare ?? _estimate?.finalFare,
+        fareCalculated: fareCalculated,
+        fareOffered: fareOffered,
+        passengerName: user.displayName ?? user.email?.split('@').first,
       );
       setState(() { _activeTrip = trip; _loading = false; });
       _subscribeToTrip(trip.id);
@@ -629,6 +669,16 @@ Divider(height: 1, color: p.border),
       ));
     }
     final polygons = <Polygon>{};
+
+    // Polígono urbano de El Carmen de Bolívar (borde verde, relleno transparente)
+    polygons.add(Polygon(
+      polygonId: const PolygonId('urban-perimeter'),
+      points: CarsigoUrbanPolygon.urbanPerimeter,
+      fillColor: const Color(0xFF22C55E).withAlpha(30), // verde transparente
+      strokeColor: const Color(0xFF22C55E), // verde sólido
+      strokeWidth: 2,
+    ));
+
     for (final zone in _allowedZones) {
       for (final polygon in zone.polygons) {
         polygons.add(Polygon(

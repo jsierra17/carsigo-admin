@@ -71,6 +71,7 @@ class _TripHistoryScreenState extends ConsumerState<TripHistoryScreen> {
       case TripStatus.cancelled: return p.textMuted;
       case TripStatus.inProgress: return p.cyan;
       case TripStatus.accepted: return p.cyan;
+      case TripStatus.negotiating: return Colors.amber;
       case TripStatus.pending: return Colors.orange;
     }
   }

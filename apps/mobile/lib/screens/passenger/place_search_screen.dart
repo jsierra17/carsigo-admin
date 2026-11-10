@@ -1,9 +1,14 @@
 ﻿import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 import '../../services/location_service.dart';
 import '../../services/recent_destinations.dart';
 import '../../services/zone_service.dart';
 import '../../theme/carsigo_theme.dart';
+import '../../data/carsigo_urban_polygon.dart';
 
 /// Resultado del panel expandido: origen (si el usuario lo cambió) y destino
 /// (si lo eligió). Cualquiera puede ser nulo.
@@ -100,17 +105,100 @@ class _PlaceSearchScreenState extends State<PlaceSearchScreen> {
     final mySeq = ++_searchSeq;
     final t = text.trim();
     if (t.length < 2) return;
-    final suggestions = await LocationService.searchAddress(
-      t.length > 120 ? t.substring(0, 120) : t,
-      zones: widget.zones,
-      userLat: widget.userLat,
-      userLng: widget.userLng,
+
+    // Obtener bounds del polígono urbano para restringir el autocompletado
+    final (minLat, minLng, maxLat, maxLng) = urbanPolygonBounds();
+
+    final suggestions = await _googlePlacesAutocomplete(
+      t,
+      minLat: minLat,
+      minLng: minLng,
+      maxLat: maxLat,
+      maxLng: maxLng,
     );
+
     if (!mounted || mySeq != _searchSeq) return;
     setState(() {
       _results = suggestions;
       _searching = false;
     });
+  }
+
+  /// Llama a Google Places Autocomplete API con restricción de ubicación
+  /// (locationRestriction) al rectángulo que encierra el polígono urbano.
+  /// Esto fuerza a Google a sugerir solo direcciones dentro de El Carmen.
+  Future<List<MapSuggestion>> _googlePlacesAutocomplete(
+    String query, {
+    required double minLat,
+    required double minLng,
+    required double maxLat,
+    required double maxLng,
+  }) async {
+    final apiKey = dotenv.env['GOOGLE_WEB_SERVICES_KEY'] ?? '';
+    if (apiKey.isEmpty) return const [];
+
+    final url = Uri.parse(
+      'https://places.googleapis.com/v1/places:autocomplete',
+    );
+
+    try {
+      final res = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask':
+              'suggestions.placePrediction,suggestions.placePrediction.displayName,suggestions.placePrediction.location,suggestions.placePrediction.structuredFormat',
+        },
+        body: jsonEncode({
+          'textQuery': query,
+          'languageCode': 'es',
+          'regionCode': 'CO',
+          'locationRestriction': {
+            'rectangle': {
+              'low': {'latitude': minLat, 'longitude': minLng},
+              'high': {'latitude': maxLat, 'longitude': maxLng},
+            },
+          },
+          'includeQueryPredictions': false,
+          'includeTypePredictions': false,
+          'maxResults': 15,
+        }),
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode != 200) {
+        debugPrint('Places Autocomplete error: ${res.statusCode}');
+        return const [];
+      }
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final suggestions = (data['suggestions'] as List?) ?? [];
+
+      final out = <MapSuggestion>[];
+      for (final s in suggestions) {
+        final prediction = s['placePrediction'] as Map<String, dynamic>?;
+        if (prediction == null) continue;
+
+        final displayName = prediction['displayName'] as Map<String, dynamic>?;
+        final name = displayName?['text'] as String? ?? '';
+        if (name.isEmpty) continue;
+
+        final location = prediction['location'] as Map<String, dynamic>?;
+        final lat = (location?['latitude'] as num?)?.toDouble() ?? 0;
+        final lng = (location?['longitude'] as num?)?.toDouble() ?? 0;
+        if (lat == 0 && lng == 0) continue;
+
+        out.add(MapSuggestion(
+          placeName: name,
+          lat: lat,
+          lng: lng,
+        ));
+      }
+      return out;
+    } catch (e) {
+      debugPrint('Places Autocomplete exception: $e');
+      return const [];
+    }
   }
 
   void _switchActive(bool pickup) {
@@ -159,11 +247,37 @@ class _PlaceSearchScreenState extends State<PlaceSearchScreen> {
 
   void _selectActive(MapSuggestion s) {
     if (_activeIsPickup) {
+      // Validar que el origen esté dentro del polígono urbano
+      if (!isPointInUrbanPolygon(LatLng(s.lat, s.lng))) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El origen debe estar dentro del casco urbano de El Carmen de Bolívar',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
       setState(() {
         _pickupSel = s;
         _pickupCtrl.text = s.placeName.split(',').first;
       });
       _switchActive(false);
+      return;
+    }
+    // Validar que el destino esté dentro del polígono urbano
+    if (!isPointInUrbanPolygon(LatLng(s.lat, s.lng))) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'El destino debe estar dentro del casco urbano de El Carmen de Bolívar',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
     RecentDestinations.add(RecentDestination(

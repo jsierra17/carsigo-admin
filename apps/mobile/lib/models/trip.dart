@@ -1,11 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum TripStatus { pending, accepted, inProgress, completed, cancelled }
+enum TripStatus {
+  pending,
+  negotiating,
+  accepted,
+  inProgress,
+  completed,
+  cancelled,
+}
 
 extension TripStatusX on TripStatus {
   String get apiValue {
     switch (this) {
       case TripStatus.pending: return 'pending';
+      case TripStatus.negotiating: return 'negotiating';
       case TripStatus.accepted: return 'accepted';
       case TripStatus.inProgress: return 'inProgress';
       case TripStatus.completed: return 'completed';
@@ -15,6 +23,7 @@ extension TripStatusX on TripStatus {
   String get label {
     switch (this) {
       case TripStatus.pending: return 'Buscando conductor';
+      case TripStatus.negotiating: return 'Negociando tarifa';
       case TripStatus.accepted: return 'Conductor en camino';
       case TripStatus.inProgress: return 'En viaje';
       case TripStatus.completed: return 'Completado';
@@ -28,7 +37,10 @@ class Trip {
   final String passengerId;
   final String? driverId;
   final TripStatus status;
-  final double fareAmount;
+  final double fareCalculated; // Precio que dicta el motor de tarifas (inmutable)
+  final double fareOffered;   // Precio que ofrece el pasajero (>= fareCalculated)
+  final double? fareCounterOffer; // Contraoferta del conductor (>= fareCalculated)
+  final double fareAmount;    // Precio final acordado (al aceptar)
   final double commissionAmount;
   final String pickupAddress;
   final String? dropoffAddress;
@@ -49,7 +61,10 @@ class Trip {
     required this.passengerId,
     this.driverId,
     required this.status,
-    this.fareAmount = 0,
+    required this.fareCalculated,
+    required this.fareOffered,
+    this.fareCounterOffer,
+    required this.fareAmount,
     this.commissionAmount = 0,
     required this.pickupAddress,
     this.dropoffAddress,
@@ -76,6 +91,9 @@ class Trip {
   }
 
   factory Trip.fromJson(Map<String, dynamic> json) {
+    final fareCalculated = (json['fare_calculated'] ?? json['fare_amount'] ?? 0).toDouble();
+    final fareOffered = (json['fare_offered'] ?? json['fare_amount'] ?? 0).toDouble();
+    final fareAmount = (json['fare_amount'] ?? 0).toDouble();
     return Trip(
       id: json['id'],
       passengerId: json['passenger_id'],
@@ -84,7 +102,10 @@ class Trip {
         (e) => e.apiValue == json['status'],
         orElse: () => TripStatus.pending,
       ),
-      fareAmount: (json['fare_amount'] ?? 0).toDouble(),
+      fareCalculated: fareCalculated,
+      fareOffered: fareOffered,
+      fareCounterOffer: (json['fare_counter_offer'] as num?)?.toDouble(),
+      fareAmount: fareAmount,
       commissionAmount: (json['commission_amount'] ?? 0).toDouble(),
       pickupAddress: json['pickup_address'] ?? '',
       dropoffAddress: json['dropoff_address'],
@@ -107,6 +128,9 @@ class Trip {
     'passenger_id': passengerId,
     'driver_id': driverId,
     'status': status.apiValue,
+    'fare_calculated': fareCalculated,
+    'fare_offered': fareOffered,
+    'fare_counter_offer': fareCounterOffer,
     'fare_amount': fareAmount,
     'commission_amount': commissionAmount,
     'pickup_address': pickupAddress,
@@ -120,13 +144,22 @@ class Trip {
     'vehicle_type': vehicleType,
   };
 
-  Trip copyWith({String? driverId, TripStatus? status}) {
+  Trip copyWith({
+    String? driverId,
+    TripStatus? status,
+    double? fareOffered,
+    double? fareCounterOffer,
+    double? fareAmount,
+  }) {
     return Trip(
       id: id,
       passengerId: passengerId,
       driverId: driverId ?? this.driverId,
       status: status ?? this.status,
-      fareAmount: fareAmount,
+      fareCalculated: fareCalculated,
+      fareOffered: fareOffered ?? this.fareOffered,
+      fareCounterOffer: fareCounterOffer ?? this.fareCounterOffer,
+      fareAmount: fareAmount ?? this.fareAmount,
       commissionAmount: commissionAmount,
       pickupAddress: pickupAddress,
       dropoffAddress: dropoffAddress,
