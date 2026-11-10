@@ -1,0 +1,24 @@
+{
+  "recommendations": [
+    "vue.volar",
+    "bradlc.vscode-tailwindcss",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "dart-code.flutter",
+    "sst-dev.opencode"
+  ],
+  "unwantedRecommendations": [
+    "bmewburn.vscode-intelephense-client",
+    "ms-python.python",
+    "ms-toolsai.jupyter",
+    "ms-dotnettools.csharp",
+    "vscjava.vscode-gradle",
+    "ms-mssql.mssql",
+    "ms-azuretools.vscode-docker",
+    "expo.vscode-expo-tools",
+    "rodrigovallades.es7-react-js-snippets",
+    "batisteo.vscode-django",
+    "swiftlang.swift-vscode",
+    "ms-vscode.cpptools"
+  ]
+}

@@ -1,0 +1,84 @@
+name: Build Android APK
+
+on:
+  # Ejecucion manual desde la pestana "Actions" de GitHub.
+  workflow_dispatch:
+  # Cada push a main genera un APK de release listo para descargar.
+  push:
+    branches: [main]
+
+# Si se encolan dos builds del mismo ref, se cancela el anterior.
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Flutter release APK (universal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # El secret GOOGLE_SERVICES_JSON es el archivo google-services.json
+      # codificado en base64 (una sola linea). Sobrescribe el del repo.
+      - name: Inject google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Falta el secret GOOGLE_SERVICES_JSON (base64 del archivo google-services.json)."
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          grep -q '"package_name": "com.carsigo.app"' android/app/google-services.json \
+            || echo "::warning::El google-services.json no declara el paquete com.carsigo.app."
+
+      # .env no esta versionado (contiene API keys) y el pubspec lo declara
+      # como asset: sin el archivo el build falla. Secret MOBILE_ENV_B64 =
+      # contenido de apps/mobile/.env codificado en base64.
+      - name: Inject .env
+        env:
+          MOBILE_ENV_B64: ${{ secrets.MOBILE_ENV_B64 }}
+        run: |
+          if [ -n "$MOBILE_ENV_B64" ]; then
+            echo "$MOBILE_ENV_B64" | base64 -d > .env
+          else
+            echo "::warning::MOBILE_ENV_B64 no definido: se usa .env.example (Mapas/Google Sign-In no funcionaran)."
+            cp .env.example .env
+          fi
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release --tree-shake-icons
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: carsigo-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

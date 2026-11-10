@@ -1,4 +1,74 @@
 {
   "css.customData": [],
-  "css.lint.unknownAtRules": "ignore"
+  "css.lint.unknownAtRules": "ignore",
+
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/build/**": true,
+    "**/.dart_tool/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/dist/**": true,
+    "**/coverage/**": true,
+    "**/.vite/**": true,
+    "**/.gradle/**": true,
+    "**/.kotlin/**": true,
+    "**/Pods/**": true,
+    "**/.idea/**": true,
+    "**/firebase/public/**": true,
+    "**/*.log": true,
+    "**/*.tsbuildinfo": true
+  },
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/.dart_tool": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.vite": true,
+    "**/.gradle": true,
+    "**/.kotlin": true,
+    "**/Pods": true,
+    "**/firebase/public": true,
+    "**/*.log": true
+  },
+  "search.followSymlinks": false,
+  "search.useIgnoreFiles": true,
+
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.dart_tool": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.vite": true,
+    "**/.gradle": true,
+    "**/.kotlin": true
+  },
+
+  "dart.analysisExcludedFolders": [
+    "build",
+    ".dart_tool",
+    "apps/mobile/build",
+    "apps/mobile/.dart_tool",
+    "carsigo-mobile/build",
+    "carsigo-mobile/.dart_tool"
+  ],
+  "dart.checkForSdkUpdates": false,
+
+  "tailwindCSS.files.exclude": [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.dart_tool/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/firebase/public/**"
+  ],
+
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.tsc.autoDetect": "off",
+
+  "git.autofetch": false,
+  "editor.minimap.enabled": false,
+  "telemetry.telemetryLevel": "off"
 }

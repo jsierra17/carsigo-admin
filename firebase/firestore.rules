@@ -42,14 +42,25 @@ service cloud.firestore {
         request.resource.data.status == resource.data.status &&
         // Impedir limpiar claves como role/status ni tocar solo is_available
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'email', 'phone', 'photo_url', 'device_token'
+          'name', 'email', 'phone', 'photo_url', 'device_token',
+          'first_name', 'last_name', 'id_number', 'profile_completed'
         ]) &&
         (!('name' in request.resource.data) ||
           (request.resource.data.name is string && request.resource.data.name.size() <= 120)) &&
         (!('email' in request.resource.data) ||
           (request.resource.data.email is string && request.resource.data.email.size() <= 200)) &&
         (!('phone' in request.resource.data) ||
-          (request.resource.data.phone is string && request.resource.data.phone.size() <= 40))) || isAdmin();
+          (request.resource.data.phone is string && request.resource.data.phone.size() <= 40)) &&
+        // profile_completed solo puede pasarse a true por el propio usuario
+        (!('profile_completed' in request.resource.data) ||
+          request.resource.data.profile_completed == true) &&
+        (!('first_name' in request.resource.data) ||
+          (request.resource.data.first_name is string && request.resource.data.first_name.size() <= 100)) &&
+        (!('last_name' in request.resource.data) ||
+          (request.resource.data.last_name is string && request.resource.data.last_name.size() <= 100)) &&
+        (!('id_number' in request.resource.data) ||
+          (request.resource.data.id_number is string && request.resource.data.id_number.size() <= 20))
+      ) || isAdmin();
       allow delete: if isSuperAdmin();
     }
 
@@ -116,25 +127,50 @@ service cloud.firestore {
     }
 
     // ── trips ───────────────────────────────────────────────
-    // Feed de conductores: solo trips pendientes sin asignar.
+    // Feed de conductores: trips pendientes o en negociación sin asignar.
     match /trips/{tripId} {
       allow read: if isSignedIn() && (
         resource.data.passenger_id == request.auth.uid ||
         resource.data.driver_id == request.auth.uid ||
-        (resource.data.status == 'pending' && resource.data.driver_id == null) ||
+        (resource.data.status in ['pending', 'negotiating'] && resource.data.driver_id == null) ||
         isAdmin()
       );
+
+      // Helper: validación base de campos inmutables que nadie (excepto admin) puede tocar
+      function tripImmutableFieldsUnchanged() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'driver_id', 'fare_offered', 'fare_counter_offer', 'fare_amount',
+          'accepted_at', 'started_at', 'completed_at', 'driver_lat', 'driver_lng'
+        ]);
+      }
+
+      // Helper: el conductor solo puede subir la oferta, nunca bajar de fare_calculated
+      function driverFareValid() {
+        return request.resource.data.fare_counter_offer >= resource.data.fare_calculated &&
+               request.resource.data.fare_amount >= resource.data.fare_calculated;
+      }
+
+      // Helper: el pasajero solo puede subir su oferta, nunca bajar de fare_calculated
+      function passengerFareValid() {
+        return request.resource.data.fare_offered >= resource.data.fare_calculated &&
+               request.resource.data.fare_amount >= resource.data.fare_calculated;
+      }
+
       allow create: if (isSignedIn() && request.resource.data.passenger_id == request.auth.uid &&
         request.resource.data.status == 'pending' &&
         request.resource.data.keys().hasOnly([
-          'id', 'passenger_id', 'status', 'pickup', 'dropoff',
-          'pickup_address', 'dropoff_address', 'pickup_lat', 'pickup_lng',
-          'dropoff_lat', 'dropoff_lng', 'pickup_location',
-          'distance_km', 'duration_min', 'vehicle_type',
-          'fare_amount', 'driver_id', 'created_at', 'passenger_name'
+          'id', 'passenger_id', 'passenger_name', 'status', 'pickup_address', 'dropoff_address',
+          'pickup_lat', 'pickup_lng', 'dropoff_lat', 'dropoff_lng', 'pickup_location',
+          'distance_km', 'duration_min', 'vehicle_type', 'zone_id',
+          'fare_calculated', 'fare_offered', 'fare_amount', 'driver_id', 'created_at'
         ]) &&
-        request.resource.data.fare_amount is number &&
-        request.resource.data.fare_amount >= 0 &&
+        // Validación crítica: la oferta del pasajero no puede ser menor a la tarifa calculada
+        request.resource.data.fare_offered >= request.resource.data.fare_calculated &&
+        request.resource.data.fare_amount == request.resource.data.fare_offered &&
+        request.resource.data.fare_calculated is number &&
+        request.resource.data.fare_calculated >= 0 &&
+        request.resource.data.fare_offered is number &&
+        request.resource.data.fare_offered >= 0 &&
         request.resource.data.distance_km is number &&
         request.resource.data.distance_km >= 0 &&
         request.resource.data.pickup_lat is number &&
@@ -142,20 +178,42 @@ service cloud.firestore {
         request.resource.data.pickup_lng is number &&
         request.resource.data.pickup_lng >= -180 && request.resource.data.pickup_lng <= 180 &&
         request.resource.data.vehicle_type in ['moto', 'car']) || isAdmin();
+
       allow update: if isAdmin() ||
+        // Pasajero: cancelar su propio viaje
         (isSignedIn() && resource.data.passenger_id == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
           request.resource.data.status in ['cancelled', 'pending']) ||
-        // El conductor mueve el viaje por su ciclo de vida.
-        // Vocabulario único (el que usa la app móvil):
-        //   pending -> accepted -> inProgress -> completed | cancelled
-        // 'started' y 'active' se aceptan como alias por compatibilidad.
+        // Pasajero: aceptar contraoferta del conductor (negotiating -> accepted)
+        (isSignedIn() && resource.data.passenger_id == request.auth.uid &&
+          resource.data.status == 'negotiating' &&
+          request.resource.data.status == 'accepted' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'accepted_at']) &&
+          // El precio final ya está en fare_amount (la contraoferta)
+          request.resource.data.fare_amount == resource.data.fare_counter_offer) ||
+        // Conductor: hacer contraoferta (pending -> negotiating)
+        (isSignedIn() && resource.data.driver_id == null &&
+          resource.data.status == 'pending' &&
+          request.resource.data.driver_id == request.auth.uid &&
+          request.resource.data.status == 'negotiating' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'driver_id', 'status', 'fare_counter_offer', 'fare_amount'
+          ]) &&
+          driverFareValid()) ||
+        // Conductor: aceptar oferta del pasajero (pending/negotiating -> accepted)
         (isSignedIn() && resource.data.driver_id == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          resource.data.status in ['pending', 'negotiating'] &&
+          request.resource.data.status == 'accepted' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'accepted_at'
+          ])) ||
+        // Conductor: mover el viaje por su ciclo de vida (accepted -> inProgress -> completed | cancelled)
+        (isSignedIn() && resource.data.driver_id == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'started_at', 'completed_at']) &&
           request.resource.data.status in [
-            'accepted', 'inProgress', 'started', 'active', 'completed', 'cancelled'
+            'inProgress', 'started', 'active', 'completed', 'cancelled'
           ]) ||
-        // Asignación: un conductor se asigna un trip pendiente sin driver
+        // Asignación simple: conductor se asigna un trip pendiente sin driver (sin negociación)
         (isSignedIn() &&
           request.resource.data.driver_id == request.auth.uid &&
           resource.data.status == 'pending' && resource.data.driver_id == null &&
